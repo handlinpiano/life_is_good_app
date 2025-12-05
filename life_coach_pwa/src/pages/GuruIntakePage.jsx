@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAstrology } from '../context/AstrologyContext';
-import { chatWithChart } from '../utils/api';
+import { chatWithChart, getAlignment } from '../utils/api';
 import { db, addSeed } from '../utils/db';
 import { motion } from 'framer-motion';
 import { Send, User, Sparkles, ArrowRight, Sprout, Check } from 'lucide-react';
@@ -177,10 +177,53 @@ export default function GuruIntakePage() {
         try {
             // Prepare history for API
             // We pass the FULL history to the AI so it "remembers everything"
-            const recentHistory = (history || []).map(m => ({
+            let recentHistory = (history || []).map(m => ({
                 role: m.role,
                 content: m.content
             }));
+
+            // --- CONTEXT INJECTION ---
+            try {
+                // 1. Get Astrological Data (using birth location as proxy for current)
+                const alignData = await getAlignment(birthData.latitude, birthData.longitude);
+                if (alignData && alignData.tithi) {
+                    const tithiNum = alignData.tithi.number;
+                    // Calculate days to next Ekadashi (11 or 26)
+                    let nextEkadashiDays = 0;
+                    let nextEkadashiType = "";
+
+                    if (tithiNum < 11) {
+                        nextEkadashiDays = 11 - tithiNum;
+                        nextEkadashiType = "Shukla Ekadashi";
+                    } else if (tithiNum === 11) {
+                        nextEkadashiDays = 0;
+                        nextEkadashiType = "Today is Shukla Ekadashi!";
+                    } else if (tithiNum < 26) {
+                        nextEkadashiDays = 26 - tithiNum;
+                        nextEkadashiType = "Krishna Ekadashi";
+                    } else if (tithiNum === 26) {
+                        nextEkadashiDays = 0;
+                        nextEkadashiType = "Today is Krishna Ekadashi!";
+                    } else {
+                        // > 26, next is 11 (next month) => (30-tithi) + 11
+                        nextEkadashiDays = (30 - tithiNum) + 11;
+                        nextEkadashiType = "Shukla Ekadashi (Next Cycle)";
+                    }
+
+                    const astroContext = `
+[SYSTEM_CONTEXT_UPDATE]
+Current Time: ${new Date().toLocaleString()}
+Astrological Day (Tithi): ${alignData.tithi.name} (${alignData.tithi.paksha})
+Moon Nakshatra: ${alignData.moon_nakshatra.name}
+Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiType} is in ${nextEkadashiDays} days.`}
+[/SYSTEM_CONTEXT_UPDATE]
+`;
+                    // Push as a system message at the END of history so it's fresh context
+                    recentHistory.push({ role: 'system', content: astroContext });
+                }
+            } catch (e) {
+                console.error("Failed to inject astro context", e);
+            }
 
             const response = await chatWithChart(birthData, input, recentHistory); // Note: API takes (data, question, history)
 

@@ -203,18 +203,30 @@ export default function GardenPage() {
 
     // Calculate Score
     const today = new Date().toISOString().split('T')[0];
-    const dailyScore = seeds?.reduce((score, seed) => {
+
+    // Calculate Stats
+    let maxPossibleScore = 0;
+    let currentScore = 0;
+    let seedsWateredCount = 0;
+    const totalSeeds = seeds?.length || 0;
+
+    seeds?.forEach(seed => {
+        const points = (SEED_DIFFICULTIES[seed.difficulty] || SEED_DIFFICULTIES.Medium).points;
+        maxPossibleScore += points;
+
         const isCompleted = logsBySeed?.[seed.id]?.some(log => log.date === today);
         if (isCompleted) {
-            const points = (SEED_DIFFICULTIES[seed.difficulty] || SEED_DIFFICULTIES.Medium).points;
-            return score + points;
+            currentScore += points;
+            seedsWateredCount++;
         }
-        return score;
-    }, 0) || 0;
+    });
+
+    const progressPercent = maxPossibleScore > 0 ? (currentScore / maxPossibleScore) * 100 : 0;
+    const isGoalMet = progressPercent >= 80;
 
     return (
         <div className="min-h-screen bg-stone-50 dark:bg-slate-900 pb-20">
-            <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-10">
+            <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-10 transition-colors">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
                     <Link to="/" className="text-stone-500 hover:text-amber-600">
                         ← Dashboard
@@ -224,22 +236,51 @@ export default function GardenPage() {
                             <Leaf className="text-green-600" /> My Cosmic Garden
                         </h1>
                         <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-1">
-                            Daily Score: {dailyScore}
+                            Daily Score: {currentScore}
                         </div>
                     </div>
                     <div className="w-8" />
                 </div>
+
+                {/* Progress Bar */}
+                <div className="h-1.5 w-full bg-stone-100 dark:bg-slate-700">
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercent}%` }}
+                        className={clsx(
+                            "h-full transition-all duration-500",
+                            isGoalMet ? "bg-gradient-to-r from-amber-400 to-green-500" : "bg-amber-400"
+                        )}
+                    />
+                </div>
             </header>
 
             <main className="max-w-md mx-auto px-4 py-6 space-y-6">
-                <section className="text-center py-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-inner border border-amber-100 dark:border-slate-700">
-                    <Trophy className="mx-auto text-amber-500 mb-2 h-8 w-8" />
-                    <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100 table-nums">
-                        {dailyScore} <span className="text-sm font-normal text-stone-500">pts</span>
-                    </h2>
-                    <p className="text-stone-600 dark:text-stone-400 text-sm mt-1">
-                        Today's Karmic Progress
-                    </p>
+
+                {/* Score Card */}
+                <section className={clsx(
+                    "text-center py-6 rounded-2xl shadow-inner border transition-colors relative overflow-hidden",
+                    isGoalMet
+                        ? "bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800"
+                        : "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-900 border-amber-100 dark:border-slate-700"
+                )}>
+                    <div className="relative z-10">
+                        <Trophy className={clsx("mx-auto mb-2 h-8 w-8", isGoalMet ? "text-green-600" : "text-amber-500")} />
+                        <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100 table-nums">
+                            {currentScore} <span className="text-sm font-normal text-stone-500">/ {maxPossibleScore} pts</span>
+                        </h2>
+                        <p className={clsx("text-sm mt-1 font-medium", isGoalMet ? "text-green-700" : "text-stone-600 dark:text-stone-400")}>
+                            {isGoalMet ? "✨ Goal Met! Cosmic Alignment Achieved ✨" : "Today's Karmic Progress (Goal: 80%)"}
+                        </p>
+                    </div>
+
+                    {isGoalMet && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.1 }}
+                            className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"
+                        />
+                    )}
                 </section>
 
                 <section className="space-y-4">

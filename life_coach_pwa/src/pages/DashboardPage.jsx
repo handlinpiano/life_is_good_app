@@ -1,8 +1,9 @@
+```javascript
 import { useState } from 'react';
 import { useAstrology } from '../context/AstrologyContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Activity, Sparkles, Briefcase, Zap, Moon, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
@@ -108,12 +109,12 @@ function PartnerModal({ isOpen, onClose, onSubmit, loading, error }) {
 }
 
 export default function DashboardPage() {
-    const { chart, calculateCompatibility, loading, partnerData, error } = useAstrology();
+    const { birthData, loading: loadingAstrology } = useAstrology();
+    const navigate = useNavigate();
     const [selectedGurus, setSelectedGurus] = useState([]);
     const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [showBlueprint, setShowBlueprint] = useState(false); // Collapsed by default
-    const navigate = useNavigate();
-    const [partnerModalError, setPartnerModalError] = useState(null);
+    const [showAlignment, setShowAlignment] = useState(false);
 
     const toggleGuru = (id) => {
         setSelectedGurus(prev =>
@@ -132,7 +133,7 @@ export default function DashboardPage() {
         // Proceed to Intake for the first selected Guru
         // In the future, we could have a "Hub" or iterate through them
         const firstGuruId = selectedGurus[0];
-        navigate(`/intake/${firstGuruId}`);
+        navigate(`/ intake / ${ firstGuruId } `);
     };
 
     const handlePartnerSubmit = async (data) => {
@@ -167,40 +168,51 @@ export default function DashboardPage() {
             </header>
 
             <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+                {/* Daily Alignment Button - Prominent */}
+                <div className="max-w-4xl mx-auto px-4 mt-6">
+                    <button
+                        onClick={() => setShowAlignment(true)}
+                        className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-between group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white/20 p-2 rounded-lg">
+                                <Sparkles className="text-yellow-300" />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-lg">Daily Cosmic Alignment</h3>
+                                <p className="text-white/80 text-sm">Check today's energy & advice</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="transform group-hover:translate-x-1 transition-transform" />
+                    </button>
+                </div>
+
                 {/* Cosmic Blueprint Section */}
-                <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 overflow-hidden">
+                <div className="max-w-4xl mx-auto px-4 mt-6">
                     <button
                         onClick={() => setShowBlueprint(!showBlueprint)}
-                        className="w-full p-4 flex justify-between items-center text-left text-2xl font-bold text-amber-900 dark:text-amber-100 hover:bg-stone-50 dark:hover:bg-slate-700 transition-colors"
+                        className="flex items-center gap-2 text-stone-500 hover:text-amber-600 font-medium w-full"
                     >
-                        <span className="flex items-center gap-2">
-                            <Sparkles className="text-amber-500" /> Your Cosmic Blueprint
-                        </span>
-                        {showBlueprint ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                        {showBlueprint ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        {showBlueprint ? "Hide Cosmic Blueprint" : "Show Your Cosmic Blueprint"}
                     </button>
+
                     <AnimatePresence>
                         {showBlueprint && (
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                             >
-                                <div className="p-6 border-t border-stone-200 dark:border-stone-700">
-                                    <div className="grid md:grid-cols-2 gap-8">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4 text-center">Rashi Chart (D1)</h3>
-                                            <div className="bg-amber-50 dark:bg-slate-900/50 p-4 rounded-xl flex justify-center">
-                                                <NorthIndianChart chart={chart} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4">Planetary Positions</h3>
-                                            <div className="max-h-[400px] overflow-auto">
-                                                <PlanetTable planets={chart.planets} />
-                                            </div>
-                                        </div>
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700">
+                                    <div>
+                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Rashi Chart (D1)</h3>
+                                        <NorthIndianChart chart={chart} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Planetary Positions</h3>
+                                        <PlanetTable planets={chart.planets} />
                                     </div>
                                 </div>
                             </motion.div>
@@ -234,7 +246,7 @@ export default function DashboardPage() {
                                         className={clsx(
                                             "cursor-pointer rounded-xl p-4 border-2 transition-all relative overflow-hidden",
                                             isSelected
-                                                ? `border-amber-500 bg-white shadow-md dark:bg-slate-800`
+                                                ? `border - amber - 500 bg - white shadow - md dark: bg - slate - 800`
                                                 : "border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md"
                                         )}
                                     >

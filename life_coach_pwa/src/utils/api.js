@@ -40,3 +40,18 @@ export async function calculateSynastry(people) {
   const response = await axios.post(`${API_BASE}/synastry`, { people })
   return response.data
 }
+
+export async function getAlignment(latitude, longitude) {
+  const now = new Date();
+  const data = {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    hour: now.getHours(),
+    minute: now.getMinutes(),
+    latitude,
+    longitude
+  };
+  const response = await axios.post(`${API_BASE}/alignment`, data);
+  return response.data;
+}
