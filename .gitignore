@@ -1,0 +1,29 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.venv
+env/
+*.log
+
+# Editor
+.vscode/
+.idea/
+
+# PWA
+life_coach_pwa/dist/
+life_coach_pwa/node_modules/
+
+# Backend
+vedic_astrology/backend/venv/
+vedic_astrology/backend/__pycache__/
