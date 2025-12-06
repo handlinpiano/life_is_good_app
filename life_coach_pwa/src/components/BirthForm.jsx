@@ -3,6 +3,11 @@ import CitySearch from './CitySearch'
 
 export default function BirthForm({ onSubmit, loading }) {
   const [formData, setFormData] = useState({
+    name: '',
+    gender: '',
+    relationshipStatus: '',
+    sexualOrientation: '',
+    profession: '',
     date: '',
     time: '',
     latitude: '',
@@ -14,14 +19,11 @@ export default function BirthForm({ onSubmit, loading }) {
 
   const validateDate = (dateStr) => {
     if (!dateStr) return 'Date is required'
-
     const date = new Date(dateStr)
     const now = new Date()
-
     if (date > now) return 'Birth date cannot be in the future'
     if (date.getFullYear() < 1900) return 'Birth date must be after 1900'
     if (date.getFullYear() > 2100) return 'Birth date must be before 2100'
-
     return null
   }
 
@@ -32,22 +34,23 @@ export default function BirthForm({ onSubmit, loading }) {
 
   const validateLatitude = (latStr) => {
     if (!latStr) return 'Latitude is required'
-
     const lat = parseFloat(latStr)
     if (isNaN(lat)) return 'Latitude must be a valid number'
     if (lat < -90 || lat > 90) return 'Latitude must be between -90 and 90'
-
     return null
   }
 
   const validateLongitude = (lngStr) => {
     if (!lngStr) return 'Longitude is required'
-
     const lng = parseFloat(lngStr)
     if (isNaN(lng)) return 'Longitude must be a valid number'
     if (lng < -180 || lng > 180) return 'Longitude must be between -180 and 180'
-
     return null
+  }
+
+  const validateGenerics = (name, value) => {
+    if (!value || value.trim() === '') return `${name.charAt(0).toUpperCase() + name.slice(1)} is required`;
+    return null;
   }
 
   const validateField = (name, value) => {
@@ -66,6 +69,13 @@ export default function BirthForm({ onSubmit, loading }) {
       case 'longitude':
         error = validateLongitude(value)
         break
+      case 'name':
+      case 'gender':
+      case 'relationshipStatus':
+      case 'sexualOrientation':
+      case 'profession':
+        error = validateGenerics(name, value);
+        break;
       default:
         break
     }
@@ -85,7 +95,6 @@ export default function BirthForm({ onSubmit, loading }) {
       longitude: newLng,
     }))
 
-    // Validate the new coordinates
     validateField('latitude', newLat)
     validateField('longitude', newLng)
   }
@@ -93,11 +102,8 @@ export default function BirthForm({ onSubmit, loading }) {
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-
-    // Validate the field
     validateField(name, value)
 
-    // Clear city selection if coordinates are manually changed
     if (name === 'latitude' || name === 'longitude') {
       setCityName('')
     }
@@ -115,6 +121,11 @@ export default function BirthForm({ onSubmit, loading }) {
     const [hour, minute] = formData.time.split(':').map(Number)
 
     onSubmit({
+      name: formData.name,
+      gender: formData.gender,
+      relationshipStatus: formData.relationshipStatus,
+      sexualOrientation: formData.sexualOrientation,
+      profession: formData.profession,
       year,
       month,
       day,
@@ -127,6 +138,11 @@ export default function BirthForm({ onSubmit, loading }) {
 
   const hasErrors = Object.values(errors).some((error) => error !== null)
   const isValid =
+    formData.name &&
+    formData.gender &&
+    formData.relationshipStatus &&
+    formData.sexualOrientation &&
+    formData.profession &&
     formData.date &&
     formData.time &&
     formData.latitude &&
@@ -139,8 +155,94 @@ export default function BirthForm({ onSubmit, loading }) {
       className="bg-white rounded-xl shadow-lg p-6 space-y-5"
     >
       <h2 className="text-xl font-semibold text-amber-900 border-b border-amber-200 pb-3">
-        Birth Details
+        Your Profile & Birth Details
       </h2>
+
+      {/* Name & Profession */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-amber-800 mb-1">Name</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            placeholder="What should we call you?"
+            className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-amber-800 mb-1">Profession</label>
+          <input
+            type="text"
+            name="profession"
+            value={formData.profession}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            placeholder="e.g. Designer, Teacher"
+            className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50"
+          />
+        </div>
+      </div>
+
+      {/* Personal Details */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-amber-800 mb-1">Gender</label>
+          <select
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50"
+          >
+            <option value="">Select...</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="non-binary">Non-binary</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-amber-800 mb-1">Relationship Status</label>
+          <select
+            name="relationshipStatus"
+            value={formData.relationshipStatus}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50"
+          >
+            <option value="">Select...</option>
+            <option value="single">Single</option>
+            <option value="dating">Dating</option>
+            <option value="married">Married</option>
+            <option value="divorced">Divorced</option>
+            <option value="widowed">Widowed</option>
+            <option value="complicated">It's Complicated</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-amber-800 mb-1">Sexual Orientation</label>
+          <select
+            name="sexualOrientation"
+            value={formData.sexualOrientation}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50"
+          >
+            <option value="">Select...</option>
+            <option value="heterosexual">Heterosexual</option>
+            <option value="homosexual">Gay/Lesbian</option>
+            <option value="bisexual">Bisexual</option>
+            <option value="pansexual">Pansexual</option>
+            <option value="asexual">Asexual</option>
+            <option value="other">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+
+      <hr className="border-amber-100" />
 
       {/* Date & Time Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -156,10 +258,10 @@ export default function BirthForm({ onSubmit, loading }) {
             onBlur={handleBlur}
             required
             className={`w-full px-3 py-3 md:py-2 border rounded-lg focus:ring-2 bg-amber-50 ${touched.date && errors.date
-                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                : touched.date && !errors.date && formData.date
-                  ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
-                  : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : touched.date && !errors.date && formData.date
+                ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
               }`}
           />
           {touched.date && errors.date && (
@@ -179,10 +281,10 @@ export default function BirthForm({ onSubmit, loading }) {
             onBlur={handleBlur}
             required
             className={`w-full px-3 py-3 md:py-2 border rounded-lg focus:ring-2 bg-amber-50 ${touched.time && errors.time
-                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                : touched.time && !errors.time && formData.time
-                  ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
-                  : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : touched.time && !errors.time && formData.time
+                ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
               }`}
           />
           {touched.time && errors.time && (
@@ -212,10 +314,10 @@ export default function BirthForm({ onSubmit, loading }) {
             max="90"
             required
             className={`w-full px-3 py-3 md:py-2 border rounded-lg focus:ring-2 bg-amber-50 ${touched.latitude && errors.latitude
-                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                : touched.latitude && !errors.latitude && formData.latitude
-                  ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
-                  : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : touched.latitude && !errors.latitude && formData.latitude
+                ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
               }`}
           />
           {touched.latitude && errors.latitude && (
@@ -239,10 +341,10 @@ export default function BirthForm({ onSubmit, loading }) {
             max="180"
             required
             className={`w-full px-3 py-3 md:py-2 border rounded-lg focus:ring-2 bg-amber-50 ${touched.longitude && errors.longitude
-                ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-                : touched.longitude && !errors.longitude && formData.longitude
-                  ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
-                  : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : touched.longitude && !errors.longitude && formData.longitude
+                ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+                : 'border-amber-300 focus:ring-amber-500 focus:border-amber-500'
               }`}
           />
           {touched.longitude && errors.longitude && (

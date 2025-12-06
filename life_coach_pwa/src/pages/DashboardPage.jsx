@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAstrology } from '../context/AstrologyContext';
+import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X } from 'lucide-react';
@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
 import PlanetTable from '../components/PlanetTable';
-// import { calculateCompatibility } from '../utils/api'; // Removed
+import DailyAlignmentModal from '../components/DailyAlignmentModal';
 
 const GURUS = [
     {
@@ -109,7 +109,12 @@ function PartnerModal({ isOpen, onClose, onSubmit, loading, error }) {
 }
 
 export default function DashboardPage() {
-    const { birthData, chart, loading, error, calculateCompatibility } = useAstrology();
+    const user = useStore(state => state.user);
+    const chart = useStore(state => state.chart);
+    const loading = useStore(state => state.loading);
+    const error = useStore(state => state.error);
+    const calculateCompatibility = useStore(state => state.calculateCompatibility);
+
     const navigate = useNavigate();
     const [selectedGurus, setSelectedGurus] = useState([]);
     const [showPartnerModal, setShowPartnerModal] = useState(false);
@@ -131,16 +136,30 @@ export default function DashboardPage() {
         }
 
         // Proceed to Intake for the first selected Guru
-        // In the future, we could have a "Hub" or iterate through them
         const firstGuruId = selectedGurus[0];
         navigate('/intake/' + firstGuruId);
     };
 
     const handlePartnerSubmit = async (data) => {
-        const success = await calculateCompatibility(data);
+        // BirthForm now returns full profile data, but for partner we only need birth data
+        // For partner, we can ignore the extra fields or store them casually if we want
+        // But calculateCompatibility expects { year, month... }
+
+        // Ensure data is formatted correctly if BirthForm struct changed significantly?
+        // BirthForm returns { name, gender... year, month... }
+        // calculateCompatibility expects birth_data object.
+        // We should construct birth_data from data.
+
+        const birth_data = {
+            date: `${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}`,
+            time: `${String(data.hour).padStart(2, '0')}:${String(data.minute).padStart(2, '0')}`,
+            latitude: data.latitude,
+            longitude: data.longitude
+        };
+
+        const success = await calculateCompatibility(birth_data);
         if (success) {
             setShowPartnerModal(false);
-            // After partner intake, go to Relationship Guru intake or generic
             navigate('/intake/life_romance');
         }
     };
@@ -160,7 +179,12 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-stone-50 dark:bg-slate-900 pb-20">
             <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-amber-900 dark:text-amber-100">Life Guru</h1>
+                    <div>
+                        <h1 className="text-2xl font-bold text-amber-900 dark:text-amber-100">Life Guru</h1>
+                        {user.name && (
+                            <p className="text-sm text-stone-500 dark:text-stone-400">Welcome, {user.name}</p>
+                        )}
+                    </div>
                     <div className="text-sm font-medium text-stone-600 dark:text-stone-400">
                         {chart.ascendant_sign} Ascendant
                     </div>
@@ -303,6 +327,12 @@ export default function DashboardPage() {
                         onSubmit={handlePartnerSubmit}
                         loading={loading}
                         error={error}
+                    />
+                )}
+                {showAlignment && (
+                    <DailyAlignmentModal
+                        isOpen={showAlignment}
+                        onClose={() => setShowAlignment(false)}
                     />
                 )}
             </AnimatePresence>

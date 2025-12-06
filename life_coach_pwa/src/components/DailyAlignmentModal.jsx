@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useStore } from '../store';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X, Sun, Moon, Sparkles, Loader2 } from 'lucide-react';
 import { getAlignment, chatWithChart } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
 
-export default function DailyAlignmentModal({ isOpen, onClose, birthData }) {
+export default function DailyAlignmentModal({ isOpen, onClose }) {
+    const user = useStore(state => state.user);
+    const birthData = user.birthData;
+
     const [alignment, setAlignment] = useState(null);
     const [advice, setAdvice] = useState('');
     const [loading, setLoading] = useState(false);
@@ -15,7 +19,7 @@ export default function DailyAlignmentModal({ isOpen, onClose, birthData }) {
             loadAlignment();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, birthData]);
+    }, [isOpen]);
 
     const loadAlignment = async () => {
         setLoading(true);

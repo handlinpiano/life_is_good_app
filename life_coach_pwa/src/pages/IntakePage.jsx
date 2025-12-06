@@ -1,12 +1,25 @@
 import { useNavigate } from 'react-router-dom';
-import { useAstrology } from '../context/AstrologyContext';
+import { useStore } from '../store';
+import { motion } from 'framer-motion';
 import BirthForm from '../components/BirthForm';
+
 export default function IntakePage() {
-    const { calculateBirthChart, loading, error } = useAstrology();
+    const updateUser = useStore(state => state.updateUser);
+    const calculateBirthChart = useStore(state => state.calculateBirthChart);
+    const loading = useStore(state => state.loading);
+    const error = useStore(state => state.error);
+
     const navigate = useNavigate();
 
     const handleSubmit = async (data) => {
-        const success = await calculateBirthChart(data);
+        const { name, gender, relationshipStatus, sexualOrientation, profession, ...birthParams } = data;
+
+        // Update user profile in store
+        updateUser({ name, gender, relationshipStatus, sexualOrientation, profession });
+
+        // Calculate chart
+        const success = await calculateBirthChart(birthParams);
+
         if (success) {
             navigate('/dashboard');
         }

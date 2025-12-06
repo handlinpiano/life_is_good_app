@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAstrology } from '../context/AstrologyContext';
+import { useStore } from '../store';
 import { chatWithChart, getAlignment } from '../utils/api';
 import { db, addSeed } from '../utils/db';
 import { Send, User, Sparkles, ArrowRight, Sprout, Check } from 'lucide-react';
@@ -86,7 +86,9 @@ function SeedOfferCard({ offer, onAccept, accepted }) {
 
 export default function GuruIntakePage() {
     const { guruId } = useParams();
-    const { birthData } = useAstrology();
+    const user = useStore(state => state.user);
+    const birthData = user.birthData;
+
     const navigate = useNavigate();
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -126,8 +128,16 @@ export default function GuruIntakePage() {
             if (history !== undefined && history.length === 0 && !loading) {
                 setLoading(true);
                 try {
-                    // System prompt with "Seed Offer" instructions
-                    const systemPrompt = `Act as the ${guru.role}. I am a new client. Conduct a warm, short intake interview with me (ask one question at a time) to learn about my ${guru.topics}. 
+                    // System prompt with "Seed Offer" instructions and User Profile
+                    const systemPrompt = `Act as the ${guru.role}. I am a new client named ${user.name || 'Client'}.
+                    
+                    Here is my profile:
+                    - Gender: ${user.gender || 'Not specified'}
+                    - Profession: ${user.profession || 'Not specified'}
+                    - Relationship Status: ${user.relationshipStatus || 'Not specified'}
+                    - Sexual Orientation: ${user.sexualOrientation || 'Not specified'} (Tailor advice accordingly).
+                    
+                    Conduct a warm, short intake interview with me (ask one question at a time) to learn about my ${guru.topics}. 
                     
                     IMPORTANT: If you identify a habit or practice that would help me, you can "OFFER" it as a seed. 
                     To do this, you MUST put the offer in this specific JSON format on a separate line: 
