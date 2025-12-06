@@ -17,7 +17,22 @@ import { PLANET_ABBREV } from '../utils/constants'
  */
 
 export default function NorthIndianChart({ chart, mini = false, vargaPlanets = null, title = null }) {
-  const { houses, ascendant } = chart
+  console.log('NorthIndianChart Rendering:', { chart, mini });
+  const { ascendant, planets } = chart || {};
+  if (!chart) return <div className="text-red-500">No Chart Data</div>;
+
+  // If houses is missing but planets exists, derive houses
+  const houses = chart.houses || (() => {
+    const h = {};
+    if (planets) {
+      Object.entries(planets).forEach(([planet, data]) => {
+        const houseNum = data.house.toString();
+        if (!h[houseNum]) h[houseNum] = [];
+        h[houseNum].push(planet);
+      });
+    }
+    return h;
+  })();
 
   // House positions for North Indian layout (x, y coordinates for text placement)
   const housePositions = {

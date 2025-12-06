@@ -161,8 +161,9 @@ export default function BirthForm({ onSubmit, loading }) {
       {/* Name & Profession */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">Name</label>
+          <label htmlFor="name" className="block text-sm font-medium text-amber-800 mb-1">Name</label>
           <input
+            id="name"
             type="text"
             name="name"
             value={formData.name}
@@ -173,8 +174,9 @@ export default function BirthForm({ onSubmit, loading }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">Profession</label>
+          <label htmlFor="profession" className="block text-sm font-medium text-amber-800 mb-1">Profession</label>
           <input
+            id="profession"
             type="text"
             name="profession"
             value={formData.profession}
@@ -189,8 +191,9 @@ export default function BirthForm({ onSubmit, loading }) {
       {/* Personal Details */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">Gender</label>
+          <label htmlFor="gender" className="block text-sm font-medium text-amber-800 mb-1">Gender</label>
           <select
+            id="gender"
             name="gender"
             value={formData.gender}
             onChange={handleChange}
@@ -205,8 +208,9 @@ export default function BirthForm({ onSubmit, loading }) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">Relationship Status</label>
+          <label htmlFor="relationshipStatus" className="block text-sm font-medium text-amber-800 mb-1">Relationship Status</label>
           <select
+            id="relationshipStatus"
             name="relationshipStatus"
             value={formData.relationshipStatus}
             onChange={handleChange}
@@ -223,8 +227,9 @@ export default function BirthForm({ onSubmit, loading }) {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">Sexual Orientation</label>
+          <label htmlFor="sexualOrientation" className="block text-sm font-medium text-amber-800 mb-1">Sexual Orientation</label>
           <select
+            id="sexualOrientation"
             name="sexualOrientation"
             value={formData.sexualOrientation}
             onChange={handleChange}
@@ -247,10 +252,11 @@ export default function BirthForm({ onSubmit, loading }) {
       {/* Date & Time Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label htmlFor="date" className="block text-sm font-medium text-amber-800 mb-1">
             Birth Date
           </label>
           <input
+            id="date"
             type="date"
             name="date"
             value={formData.date}
@@ -270,10 +276,11 @@ export default function BirthForm({ onSubmit, loading }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label htmlFor="time" className="block text-sm font-medium text-amber-800 mb-1">
             Birth Time
           </label>
           <input
+            id="time"
             type="time"
             name="time"
             value={formData.time}
@@ -299,10 +306,11 @@ export default function BirthForm({ onSubmit, loading }) {
       {/* Coordinates Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label htmlFor="latitude" className="block text-sm font-medium text-amber-800 mb-1">
             Latitude
           </label>
           <input
+            id="latitude"
             type="number"
             name="latitude"
             value={formData.latitude}
@@ -326,10 +334,11 @@ export default function BirthForm({ onSubmit, loading }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-amber-800 mb-1">
+          <label htmlFor="longitude" className="block text-sm font-medium text-amber-800 mb-1">
             Longitude
           </label>
           <input
+            id="longitude"
             type="number"
             name="longitude"
             value={formData.longitude}

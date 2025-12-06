@@ -6,8 +6,9 @@ import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Ac
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
-import PlanetTable from '../components/PlanetTable';
 import DailyAlignmentModal from '../components/DailyAlignmentModal';
+import PlanetTable from '../components/PlanetTable';
+import DivisionalCharts from '../components/DivisionalCharts';
 
 const GURUS = [
     {
@@ -118,7 +119,7 @@ export default function DashboardPage() {
     const navigate = useNavigate();
     const [selectedGurus, setSelectedGurus] = useState([]);
     const [showPartnerModal, setShowPartnerModal] = useState(false);
-    const [showBlueprint, setShowBlueprint] = useState(false); // Collapsed by default
+    const [showBlueprint, setShowBlueprint] = useState(false);
     const [showAlignment, setShowAlignment] = useState(false);
 
     const toggleGuru = (id) => {
@@ -134,22 +135,11 @@ export default function DashboardPage() {
             alert("Please select at least one Guide to begin your journey.");
             return;
         }
-
-        // Proceed to Intake for the first selected Guru
         const firstGuruId = selectedGurus[0];
         navigate('/intake/' + firstGuruId);
     };
 
     const handlePartnerSubmit = async (data) => {
-        // BirthForm now returns full profile data, but for partner we only need birth data
-        // For partner, we can ignore the extra fields or store them casually if we want
-        // But calculateCompatibility expects { year, month... }
-
-        // Ensure data is formatted correctly if BirthForm struct changed significantly?
-        // BirthForm returns { name, gender... year, month... }
-        // calculateCompatibility expects birth_data object.
-        // We should construct birth_data from data.
-
         const birth_data = {
             date: `${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}`,
             time: `${String(data.hour).padStart(2, '0')}:${String(data.minute).padStart(2, '0')}`,
@@ -172,7 +162,6 @@ export default function DashboardPage() {
         );
     }
 
-    // Group by category
     const categories = ['Health', 'Spiritual', 'Life & Love'];
 
     return (
@@ -186,13 +175,13 @@ export default function DashboardPage() {
                         )}
                     </div>
                     <div className="text-sm font-medium text-stone-600 dark:text-stone-400">
-                        {chart.ascendant_sign} Ascendant
+                        {chart.D1?.ascendant?.sign} Ascendant
                     </div>
                 </div>
             </header>
 
             <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-                {/* Daily Alignment Button - Prominent */}
+                {/* Daily Alignment Button */}
                 <div className="max-w-4xl mx-auto px-4 mt-6">
                     <button
                         onClick={() => setShowAlignment(true)}
@@ -222,7 +211,7 @@ export default function DashboardPage() {
                     </button>
 
                     <AnimatePresence>
-                        {showBlueprint && (
+                        {showBlueprint && chart.D1 && (
                             <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: "auto", opacity: 1 }}
@@ -232,12 +221,24 @@ export default function DashboardPage() {
                                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700">
                                     <div>
                                         <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Rashi Chart (D1)</h3>
-                                        <NorthIndianChart chart={chart} />
+                                        <NorthIndianChart chart={chart.D1} />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Planetary Positions</h3>
-                                        <PlanetTable planets={chart.planets} />
+                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Planetary Highlights</h3>
+                                        <PlanetTable
+                                            chart={{
+                                                ...chart.D1,
+                                                navamsa: chart.D9?.planets,
+                                                ayanamsa: chart.meta?.ayanamsa,
+                                                ayanamsa_type: chart.meta?.ayanamsa_type
+                                            }}
+                                        />
                                     </div>
+                                </div>
+
+                                {/* Divisional Charts */}
+                                <div className="mt-6">
+                                    <DivisionalCharts chart={chart} chartStyle="north" />
                                 </div>
                             </motion.div>
                         )}

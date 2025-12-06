@@ -43,12 +43,16 @@ function VargaPlanetTable({ planets, ascendant }) {
 export default function DivisionalCharts({ chart, chartStyle }) {
   const [allExpanded, setAllExpanded] = useState(false)
 
-  if (!chart?.vargas) return null
+  // Chart is now the full API response which has D1, D9 etc as root keys
+  // or it might be the old structure. Let's handle both.
 
-  const vargas = chart.vargas
+  // If chart.D1 exists, it's the new structure where chart IS the response
+  // If chart.vargas exists, it's the old structure
+
+  const vargas = chart.D1 ? chart : (chart.vargas || {});
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden mt-8">
       {/* Header */}
       <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-between">
         <div>
@@ -74,7 +78,7 @@ export default function DivisionalCharts({ chart, chartStyle }) {
               key={vargaKey}
               vargaKey={vargaKey}
               varga={varga}
-              chart={chart}
+              chart={chart.D1 || chart} // Pass main chart for ascendant context if needed, though varga has its own planets
               chartStyle={chartStyle}
               forceExpanded={allExpanded}
             />
@@ -90,6 +94,28 @@ function VargaAccordionControlled({ vargaKey, varga, chart, chartStyle, forceExp
   const [localExpanded, setLocalExpanded] = useState(false)
   const expanded = forceExpanded || localExpanded
 
+  // Varga metadata
+  const VARGA_INFO = {
+    'D1': { 'name': 'Rasi', 'description': 'Main birth chart - overall life' },
+    'D2': { 'name': 'Hora', 'description': 'Wealth and finances' },
+    'D3': { 'name': 'Drekkana', 'description': 'Siblings and courage' },
+    'D4': { 'name': 'Chaturthamsa', 'description': 'Fortune and property' },
+    'D7': { 'name': 'Saptamsa', 'description': 'Children and progeny' },
+    'D9': { 'name': 'Navamsa', 'description': 'Marriage and dharma' },
+    'D10': { 'name': 'Dasamsa', 'description': 'Career and profession' },
+    'D12': { 'name': 'Dwadasamsa', 'description': 'Parents and ancestry' },
+    'D16': { 'name': 'Shodasamsa', 'description': 'Vehicles and comforts' },
+    'D20': { 'name': 'Vimsamsa', 'description': 'Spiritual progress' },
+    'D24': { 'name': 'Chaturvimsamsa', 'description': 'Learning and education' },
+    'D27': { 'name': 'Saptavimsamsa', 'description': 'Strengths and weaknesses' },
+    'D30': { 'name': 'Trimsamsa', 'description': 'Evils and misfortunes' },
+    'D40': { 'name': 'Khavedamsa', 'description': 'Auspicious effects' },
+    'D45': { 'name': 'Akshavedamsa', 'description': 'General indications' },
+    'D60': { 'name': 'Shashtiamsa', 'description': 'Past life karma' },
+  }
+
+  const info = VARGA_INFO[vargaKey] || { name: vargaKey, description: '' }
+
   // Don't render D1 as it's the main chart shown above
   if (vargaKey === 'D1') return null
 
@@ -102,10 +128,10 @@ function VargaAccordionControlled({ vargaKey, varga, chart, chartStyle, forceExp
         <span className="font-mono text-amber-600 dark:text-amber-400 w-8">{vargaKey}</span>
         <div className="flex-1">
           <span className="font-medium text-amber-900 dark:text-amber-100">
-            {varga.name}
+            {info.name}
           </span>
           <span className="ml-2 text-sm text-amber-500 dark:text-amber-400">
-            {varga.description}
+            {info.description}
           </span>
         </div>
         <span className="text-amber-400 dark:text-amber-500">
@@ -117,7 +143,7 @@ function VargaAccordionControlled({ vargaKey, varga, chart, chartStyle, forceExp
         <div className="px-4 pb-4">
           <div className="flex flex-col md:flex-row gap-4 items-start">
             {/* Mini Chart */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 mx-auto md:mx-0">
               {chartStyle === 'north' ? (
                 <NorthIndianChart
                   chart={chart}
@@ -136,7 +162,7 @@ function VargaAccordionControlled({ vargaKey, varga, chart, chartStyle, forceExp
             </div>
 
             {/* Planet positions table */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full">
               <VargaPlanetTable planets={varga.planets} ascendant={varga.ascendant} />
             </div>
           </div>
