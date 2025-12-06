@@ -4,6 +4,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  optimizeDeps: {
+    include: ['framer-motion']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/framer-motion/, /node_modules/]
+    }
+  },
   plugins: [
     react(),
     VitePWA({

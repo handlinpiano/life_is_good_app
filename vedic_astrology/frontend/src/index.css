@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+body {
+  @apply bg-gradient-to-br from-amber-50 to-orange-100 min-h-screen;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Dark mode styles */
+.dark body {
+  @apply bg-gradient-to-br from-slate-900 to-indigo-950;
+}
+
+/* Vedic chart styling */
+.chart-house {
+  @apply stroke-amber-800 fill-amber-50/80;
+}
+
+.chart-house:hover {
+  @apply fill-amber-100;
+}
+
+.planet-symbol {
+  @apply fill-amber-900 text-sm font-semibold;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-amber-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-amber-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-amber-500;
+}

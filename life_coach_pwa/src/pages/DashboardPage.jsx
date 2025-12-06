@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, CheckCircle, MessageCircle } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';

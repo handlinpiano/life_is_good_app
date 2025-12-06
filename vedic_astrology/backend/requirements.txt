@@ -1,0 +1,9 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pyswisseph>=2.10.3.2
+pytz>=2024.1
+timezonefinder>=6.5.0
+pydantic>=2.10.0
+python-multipart>=0.0.9
+openai>=1.50.0
+python-dotenv>=1.0.0

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-// import { motion } from 'framer-motion'; // Unused for now
+import { motion } from 'framer-motion';
 import BirthForm from '../components/BirthForm';
 
 export default function IntakePage() {

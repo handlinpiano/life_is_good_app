@@ -7,7 +7,7 @@ import { Send, User, Sparkles, ArrowRight, Sprout, Check, CheckCircle, RotateCcw
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 import { useLiveQuery } from 'dexie-react-hooks';
-// import { motion } from 'framer-motion'; // Unused for now
+import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 
 const GURU_PERSONAS = {

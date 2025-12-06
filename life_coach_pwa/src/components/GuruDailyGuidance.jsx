@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
+import { motion } from 'framer-motion';
 import { X, Loader2, Sparkles, Sprout } from 'lucide-react';
 import { getAlignment, chatWithChart } from '../utils/api';
 import { db } from '../utils/db';

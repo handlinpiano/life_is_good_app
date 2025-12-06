@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sun, Moon, Sparkles, Loader2, Sprout, RefreshCw, Flame, Calendar, ChevronLeft } from 'lucide-react';
 import { getAlignment, chatWithChart } from '../utils/api';
 import { db, recordCheckin, calculateStreak } from '../utils/db';
@@ -173,12 +171,7 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
-            >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-white relative">
                     <button
@@ -224,15 +217,8 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
 
                 {/* Content */}
                 <div className="p-4 overflow-y-auto flex-1 space-y-4">
-                    <AnimatePresence mode="wait">
                     {showHistory ? (
-                        <motion.div
-                            key="history"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="space-y-3"
-                        >
+                        <div className="space-y-3">
                             {/* Streak Stats */}
                             <div className="grid grid-cols-3 gap-2 mb-4">
                                 <div className="bg-orange-50 dark:bg-slate-800 p-3 rounded-xl text-center">
@@ -289,26 +275,14 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
                                     </div>
                                 )}
                             </div>
-                        </motion.div>
+                        </div>
                     ) : loading && !alignment ? (
-                        <motion.div
-                            key="loading"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center py-12 text-stone-400"
-                        >
+                        <div className="flex flex-col items-center justify-center py-12 text-stone-400">
                             <Loader2 size={32} className="animate-spin mb-2" />
                             <p>Reading the cosmic energies...</p>
-                        </motion.div>
+                        </div>
                     ) : alignment ? (
-                        <motion.div
-                            key="alignment"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="space-y-4"
-                        >
+                        <div className="space-y-4">
                             {/* Panchang Summary */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-amber-50 dark:bg-slate-800 p-3 rounded-xl border border-amber-100 dark:border-slate-700">
@@ -411,18 +385,12 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
                                     </p>
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
                     ) : (
-                        <motion.div
-                            key="error"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-center py-8 text-red-400 text-sm"
-                        >
+                        <div className="text-center py-8 text-red-400 text-sm">
                             Failed to load cosmic data. Please try again.
-                        </motion.div>
+                        </div>
                     )}
-                    </AnimatePresence>
                 </div>
 
                 {/* Footer */}
@@ -443,7 +411,7 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
                         {showHistory ? 'Back to Today' : 'Begin Your Day'}
                     </button>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }
