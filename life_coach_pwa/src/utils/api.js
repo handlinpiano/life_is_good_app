@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_BASE = '/api'
+// Use Railway backend in production, local proxy in development
+const API_BASE = import.meta.env.PROD
+  ? 'https://lifeisgoodapp-production.up.railway.app/api'
+  : '/api'
 
 export async function calculateChart(birthData) {
   const response = await axios.post(`${API_BASE}/chart`, birthData)
