@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, CheckCircle, MessageCircle } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
 import DailyAlignmentModal from '../components/DailyAlignmentModal';
 import PlanetTable from '../components/PlanetTable';
 import DivisionalCharts from '../components/DivisionalCharts';
+import Navbar from '../components/Navbar';
 
 const GURUS = [
     {
@@ -115,19 +116,28 @@ export default function DashboardPage() {
     const loading = useStore(state => state.loading);
     const error = useStore(state => state.error);
     const calculateCompatibility = useStore(state => state.calculateCompatibility);
+    const selectedGurus = useStore(state => state.selectedGurus);
+    const setSelectedGurus = useStore(state => state.setSelectedGurus);
+    const completedIntakes = useStore(state => state.completedIntakes);
 
     const navigate = useNavigate();
-    const [selectedGurus, setSelectedGurus] = useState([]);
     const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [showBlueprint, setShowBlueprint] = useState(false);
     const [showAlignment, setShowAlignment] = useState(false);
 
+    // Check if we're in "intake mode" (gurus selected but not all completed)
+    const hasSelectedGurus = selectedGurus.length > 0;
+    const allIntakesComplete = hasSelectedGurus && selectedGurus.every(id => completedIntakes.includes(id));
+    const inIntakeMode = hasSelectedGurus && !allIntakesComplete;
+
     const toggleGuru = (id) => {
-        setSelectedGurus(prev =>
-            prev.includes(id)
-                ? prev.filter(g => g !== id)
-                : [...prev, id]
-        );
+        // Don't allow changes if in intake mode
+        if (inIntakeMode) return;
+
+        const newSelection = selectedGurus.includes(id)
+            ? selectedGurus.filter(g => g !== id)
+            : [...selectedGurus, id];
+        setSelectedGurus(newSelection);
     };
 
     const handleStartJourney = () => {
@@ -135,8 +145,22 @@ export default function DashboardPage() {
             alert("Please select at least one Guide to begin your journey.");
             return;
         }
-        const firstGuruId = selectedGurus[0];
-        navigate('/intake/' + firstGuruId);
+        // Find first incomplete guru
+        const nextGuru = selectedGurus.find(id => !completedIntakes.includes(id));
+        if (nextGuru) {
+            navigate('/intake/' + nextGuru);
+        }
+    };
+
+    const handleGuruClick = (guruId) => {
+        if (inIntakeMode) {
+            // In intake mode, only allow clicking selected gurus
+            if (selectedGurus.includes(guruId)) {
+                navigate('/intake/' + guruId);
+            }
+        } else {
+            toggleGuru(guruId);
+        }
     };
 
     const handlePartnerSubmit = async (data) => {
@@ -166,23 +190,24 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-stone-50 dark:bg-slate-900 pb-20">
-            <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-amber-900 dark:text-amber-100">Life Guru</h1>
-                        {user.name && (
-                            <p className="text-sm text-stone-500 dark:text-stone-400">Welcome, {user.name}</p>
-                        )}
+            <Navbar />
+            <div className="pt-16">
+                <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-16 z-10 transition-all">
+                    <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-bold text-amber-900 dark:text-amber-100 text-lg">Dashboard</p>
+                            {user.name && (
+                                <p className="text-sm text-stone-500 dark:text-stone-400">Welcome, {user.name}</p>
+                            )}
+                        </div>
+                        <div className="text-sm font-medium text-stone-600 dark:text-stone-400">
+                            {chart.D1?.ascendant?.sign} Ascendant
+                        </div>
                     </div>
-                    <div className="text-sm font-medium text-stone-600 dark:text-stone-400">
-                        {chart.D1?.ascendant?.sign} Ascendant
-                    </div>
-                </div>
-            </header>
+                </header>
 
-            <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-                {/* Daily Alignment Button */}
-                <div className="max-w-4xl mx-auto px-4 mt-6">
+                <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+                    {/* Daily Alignment Button */}
                     <button
                         onClick={() => setShowAlignment(true)}
                         className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-between group"
@@ -198,127 +223,187 @@ export default function DashboardPage() {
                         </div>
                         <ChevronRight className="transform group-hover:translate-x-1 transition-transform" />
                     </button>
-                </div>
 
-                {/* Cosmic Blueprint Section */}
-                <div className="max-w-4xl mx-auto px-4 mt-6">
-                    <button
-                        onClick={() => setShowBlueprint(!showBlueprint)}
-                        className="flex items-center gap-2 text-stone-500 hover:text-amber-600 font-medium w-full"
-                    >
-                        {showBlueprint ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        {showBlueprint ? "Hide Cosmic Blueprint" : "Show Your Cosmic Blueprint"}
-                    </button>
-
-                    <AnimatePresence>
-                        {showBlueprint && chart.D1 && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700">
-                                    <div>
-                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Rashi Chart (D1)</h3>
-                                        <NorthIndianChart chart={chart.D1} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Planetary Highlights</h3>
-                                        <PlanetTable
-                                            chart={{
-                                                ...chart.D1,
-                                                navamsa: chart.D9?.planets,
-                                                ayanamsa: chart.meta?.ayanamsa,
-                                                ayanamsa_type: chart.meta?.ayanamsa_type
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Divisional Charts */}
-                                <div className="mt-6">
-                                    <DivisionalCharts chart={chart} chartStyle="north" />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <section className="text-center space-y-2">
-                    <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">Choose Your Guides</h2>
-                    <p className="text-stone-600 dark:text-stone-400 max-w-lg mx-auto">
-                        Select the Gurus you wish to consult. You can choose one or multiple across different areas of life.
-                    </p>
-                </section>
-
-                {categories.map(category => (
-                    <section key={category} className="space-y-4">
-                        <h3 className="text-xl font-semibold text-stone-700 dark:text-stone-300 border-b border-stone-200 pb-2">
-                            {category}
-                        </h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            {GURUS.filter(g => g.category === category).map(guru => {
-                                const isSelected = selectedGurus.includes(guru.id);
-                                const Icon = guru.icon;
-
-                                return (
-                                    <motion.div
-                                        key={guru.id}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => toggleGuru(guru.id)}
-                                        className={clsx(
-                                            "cursor-pointer rounded-xl p-4 border-2 transition-all relative overflow-hidden",
-                                            isSelected
-                                                ? 'border-amber-500 bg-white shadow-md dark:bg-slate-800'
-                                                : "border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md"
-                                        )}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <div className={clsx("p-3 rounded-lg", guru.color)}>
-                                                <Icon size={24} />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-bold text-lg dark:text-white">{guru.name}</h4>
-                                                <p className="text-sm font-medium text-stone-500 dark:text-stone-400 mb-1">{guru.title}</p>
-                                                <p className="text-sm text-stone-600 dark:text-stone-300">{guru.description}</p>
-                                            </div>
-                                            {isSelected && (
-                                                <div className="absolute top-4 right-4 text-amber-500">
-                                                    <div className="h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs">
-                                                        ✓
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                ))}
-
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-t border-stone-200 dark:border-stone-800 z-20">
-                    <div className="max-w-4xl mx-auto flex justify-between items-center">
-                        <div className="text-sm text-stone-500">
-                            {selectedGurus.length} Gurus selected
-                        </div>
+                    {/* Cosmic Blueprint Section */}
+                    <div>
                         <button
-                            onClick={handleStartJourney}
-                            className={clsx(
-                                "px-6 py-2 rounded-full font-bold transition-colors",
-                                selectedGurus.length > 0
-                                    ? "bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20"
-                                    : "bg-stone-200 text-stone-400 cursor-not-allowed"
-                            )}
-                            disabled={selectedGurus.length === 0}
+                            onClick={() => setShowBlueprint(!showBlueprint)}
+                            className="flex items-center gap-2 text-stone-500 hover:text-amber-600 font-medium w-full"
                         >
-                            Start Journey →
+                            {showBlueprint ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            {showBlueprint ? "Hide Cosmic Blueprint" : "Show Your Cosmic Blueprint"}
                         </button>
+
+                        <AnimatePresence>
+                            {showBlueprint && chart.D1 && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700">
+                                        <div>
+                                            <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Rashi Chart (D1)</h3>
+                                            <NorthIndianChart chart={chart.D1} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-serif font-bold text-stone-800 dark:text-stone-100 mb-4 text-center">Planetary Highlights</h3>
+                                            <PlanetTable
+                                                chart={{
+                                                    ...chart.D1,
+                                                    navamsa: chart.D9?.planets,
+                                                    ayanamsa: chart.meta?.ayanamsa,
+                                                    ayanamsa_type: chart.meta?.ayanamsa_type
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Divisional Charts */}
+                                    <div className="mt-6">
+                                        <DivisionalCharts chart={chart} chartStyle="north" />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
-                </div>
-            </main>
+
+                    <section className="text-center space-y-2">
+                        <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">
+                            {inIntakeMode ? "Your Guides" : "Choose Your Guides"}
+                        </h2>
+                        <p className="text-stone-600 dark:text-stone-400 max-w-lg mx-auto">
+                            {inIntakeMode
+                                ? "Complete your intake with each selected guide. Click on a guide to continue or start their intake."
+                                : "Select the Gurus you wish to consult. You can choose one or multiple across different areas of life."}
+                        </p>
+                    </section>
+
+                    {categories.map(category => (
+                        <section key={category} className="space-y-4">
+                            <h3 className="text-xl font-semibold text-stone-700 dark:text-stone-300 border-b border-stone-200 pb-2">
+                                {category}
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {GURUS.filter(g => g.category === category).map(guru => {
+                                    const isSelected = selectedGurus.includes(guru.id);
+                                    const isCompleted = completedIntakes.includes(guru.id);
+                                    const Icon = guru.icon;
+
+                                    // In intake mode, grey out unselected gurus
+                                    const isGreyedOut = inIntakeMode && !isSelected;
+
+                                    return (
+                                        <motion.div
+                                            key={guru.id}
+                                            whileHover={!isGreyedOut ? { scale: 1.02 } : {}}
+                                            whileTap={!isGreyedOut ? { scale: 0.98 } : {}}
+                                            onClick={() => handleGuruClick(guru.id)}
+                                            className={clsx(
+                                                "rounded-xl p-4 border-2 transition-all relative overflow-hidden",
+                                                isGreyedOut
+                                                    ? "opacity-40 cursor-not-allowed border-transparent bg-stone-100 dark:bg-slate-900"
+                                                    : "cursor-pointer",
+                                                !isGreyedOut && isSelected && isCompleted
+                                                    ? 'border-green-500 bg-green-50 shadow-md dark:bg-green-900/20'
+                                                    : !isGreyedOut && isSelected
+                                                        ? 'border-amber-500 bg-white shadow-md dark:bg-slate-800'
+                                                        : !isGreyedOut && "border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md"
+                                            )}
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div className={clsx(
+                                                    "p-3 rounded-lg transition-all",
+                                                    isGreyedOut ? "bg-stone-200 text-stone-400 dark:bg-slate-700" : guru.color
+                                                )}>
+                                                    <Icon size={24} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className={clsx(
+                                                        "font-bold text-lg",
+                                                        isGreyedOut ? "text-stone-400 dark:text-stone-600" : "dark:text-white"
+                                                    )}>{guru.name}</h4>
+                                                    <p className={clsx(
+                                                        "text-sm font-medium mb-1",
+                                                        isGreyedOut ? "text-stone-300 dark:text-stone-700" : "text-stone-500 dark:text-stone-400"
+                                                    )}>{guru.title}</p>
+                                                    <p className={clsx(
+                                                        "text-sm",
+                                                        isGreyedOut ? "text-stone-300 dark:text-stone-700" : "text-stone-600 dark:text-stone-300"
+                                                    )}>{guru.description}</p>
+
+                                                    {/* Intake status badge */}
+                                                    {inIntakeMode && isSelected && (
+                                                        <div className="mt-3">
+                                                            {isCompleted ? (
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium">
+                                                                    <CheckCircle size={14} /> Intake Complete
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-xs font-medium">
+                                                                    <MessageCircle size={14} /> Start Intake
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {isSelected && !inIntakeMode && (
+                                                    <div className="absolute top-4 right-4 text-amber-500">
+                                                        <div className="h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs">
+                                                            ✓
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {isSelected && isCompleted && (
+                                                    <div className="absolute top-4 right-4">
+                                                        <div className="h-6 w-6 rounded-full bg-green-500 text-white flex items-center justify-center">
+                                                            <CheckCircle size={14} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    ))}
+
+                    <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-t border-stone-200 dark:border-stone-800 z-20">
+                        <div className="max-w-4xl mx-auto flex justify-between items-center">
+                            <div className="text-sm text-stone-500">
+                                {inIntakeMode ? (
+                                    <span>{completedIntakes.filter(id => selectedGurus.includes(id)).length} / {selectedGurus.length} intakes complete</span>
+                                ) : (
+                                    <span>{selectedGurus.length} Gurus selected</span>
+                                )}
+                            </div>
+                            {allIntakesComplete ? (
+                                <button
+                                    onClick={() => navigate('/garden')}
+                                    className="px-6 py-2 rounded-full font-bold transition-colors bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20"
+                                >
+                                    Go to Garden →
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleStartJourney}
+                                    className={clsx(
+                                        "px-6 py-2 rounded-full font-bold transition-colors",
+                                        selectedGurus.length > 0
+                                            ? "bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20"
+                                            : "bg-stone-200 text-stone-400 cursor-not-allowed"
+                                    )}
+                                    disabled={selectedGurus.length === 0}
+                                >
+                                    {inIntakeMode ? "Continue Intake →" : "Start Journey →"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </main>
+            </div>
 
             <AnimatePresence>
                 {showPartnerModal && (
@@ -337,6 +422,6 @@ export default function DashboardPage() {
                     />
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

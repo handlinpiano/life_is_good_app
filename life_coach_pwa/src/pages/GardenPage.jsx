@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, addSeed, waterSeed, deleteSeed, SEED_DIFFICULTIES } from '../utils/db';
 import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy } from 'lucide-react';
 import clsx from 'clsx';
-import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import Navbar from '../components/Navbar';
 
 const CATEGORY_COLORS = {
     Health: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -222,21 +223,20 @@ export default function GardenPage() {
 
     return (
         <div className="min-h-screen bg-stone-50 dark:bg-slate-900 pb-20">
-            <header className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-10 transition-colors">
-                <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link to="/" className="text-stone-500 hover:text-amber-600">
-                        ← Dashboard
-                    </Link>
-                    <div className="text-center">
-                        <h1 className="text-xl font-bold text-amber-900 dark:text-amber-100 flex items-center justify-center gap-2">
-                            <Leaf className="text-green-600" /> My Cosmic Garden
-                        </h1>
-                        <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-1">
-                            Daily Score: {currentScore}
+            <Navbar />
+            <div className="pt-16">
+
+                <header className="bg-white dark:bg-slate-800 shadow-sm p-6 mb-6">
+                    <div className="max-w-4xl mx-auto flex items-center gap-4">
+                        <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-xl text-green-600 dark:text-green-400">
+                            <Sprout size={32} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100">My Garden of Life</h1>
+                            <p className="text-stone-500 dark:text-stone-400">Nurture your seeds into daily habits.</p>
                         </div>
                     </div>
-                    <div className="w-8" />
-                </div>
+                </header>
 
                 {/* Progress Bar */}
                 <div className="h-1.5 w-full bg-stone-100 dark:bg-slate-700">
@@ -249,7 +249,7 @@ export default function GardenPage() {
                         )}
                     />
                 </div>
-            </header>
+            </div>
 
             <main className="max-w-md mx-auto px-4 py-6 space-y-6">
 

@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import GardenPage from './pages/GardenPage';
 import GuruIntakePage from './pages/GuruIntakePage';
 
+// Main App Component with Routing
 export default function App() {
   return (
     <Router>
