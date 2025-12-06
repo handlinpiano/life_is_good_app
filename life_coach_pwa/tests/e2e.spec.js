@@ -52,4 +52,21 @@ test('Intake form submits and loads Dashboard with Charts', async ({ page }) => 
     // 7. Verify Planet Table
     await expect(page.getByText('Planetary Highlights')).toBeVisible();
     await expect(page.getByText('Sun')).toBeVisible();
+
+    // 8. Select a Guru and Start Journey
+    await page.getByText('Vaidya Jiva').click();
+    await expect(page.getByText('1 Gurus selected')).toBeVisible();
+
+    await page.getByText('Start Journey →').click();
+
+    // 9. Verify Guru Intake Page Loads
+    await expect(page.getByText('Vaidya Jiva')).toBeVisible(); // Name
+    await expect(page.getByText('Ayurvedic Healer')).toBeVisible(); // Specific Role (Verified Fix)
+    await expect(page.getByPlaceholder('Type your answer...')).toBeVisible();
+
+    // 10. Test Context Retention & Seed Offer (Mocked Response)
+    // We can't rely on real LLM in CI, but we can check if the UI supports the offer card if it appears.
+    // For now, let's just verify the chat input works
+    await page.getByPlaceholder('Type your answer...').fill('I feel stressed.');
+    await page.getByRole('button', { name: 'Send Message' }).click(); // Send button is icon only
 });

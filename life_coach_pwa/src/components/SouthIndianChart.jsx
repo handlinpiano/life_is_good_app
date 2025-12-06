@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 export default function SouthIndianChart({ chart, mini = false, vargaPlanets = null, title = null }) {
   // Placeholder for South Indian Chart if user switches style
   return (

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, CheckCircle, MessageCircle } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
 import DailyAlignmentModal from '../components/DailyAlignmentModal';
+import GuruDailyGuidance from '../components/GuruDailyGuidance';
 import PlanetTable from '../components/PlanetTable';
 import DivisionalCharts from '../components/DivisionalCharts';
 import Navbar from '../components/Navbar';
@@ -124,6 +125,7 @@ export default function DashboardPage() {
     const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [showBlueprint, setShowBlueprint] = useState(false);
     const [showAlignment, setShowAlignment] = useState(false);
+    const [dailyGuidanceGuru, setDailyGuidanceGuru] = useState(null);
 
     // Check if we're in "intake mode" (gurus selected but not all completed)
     const hasSelectedGurus = selectedGurus.length > 0;
@@ -153,9 +155,15 @@ export default function DashboardPage() {
     };
 
     const handleGuruClick = (guruId) => {
-        if (inIntakeMode) {
+        const isCompleted = completedIntakes.includes(guruId);
+        const isSelected = selectedGurus.includes(guruId);
+
+        if (allIntakesComplete && isCompleted) {
+            // All intakes done - clicking a completed guru shows daily guidance
+            setDailyGuidanceGuru(guruId);
+        } else if (inIntakeMode) {
             // In intake mode, only allow clicking selected gurus
-            if (selectedGurus.includes(guruId)) {
+            if (isSelected) {
                 navigate('/intake/' + guruId);
             }
         } else {
@@ -271,12 +279,14 @@ export default function DashboardPage() {
 
                     <section className="text-center space-y-2">
                         <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">
-                            {inIntakeMode ? "Your Guides" : "Choose Your Guides"}
+                            {allIntakesComplete ? "Your Guides" : inIntakeMode ? "Your Guides" : "Choose Your Guides"}
                         </h2>
                         <p className="text-stone-600 dark:text-stone-400 max-w-lg mx-auto">
-                            {inIntakeMode
-                                ? "Complete your intake with each selected guide. Click on a guide to continue or start their intake."
-                                : "Select the Gurus you wish to consult. You can choose one or multiple across different areas of life."}
+                            {allIntakesComplete
+                                ? "Click on any guide for personalized daily guidance based on today's cosmic alignment."
+                                : inIntakeMode
+                                    ? "Complete your intake with each selected guide. Click on a guide to continue or start their intake."
+                                    : "Select the Gurus you wish to consult. You can choose one or multiple across different areas of life."}
                         </p>
                     </section>
 
@@ -333,7 +343,14 @@ export default function DashboardPage() {
                                                         isGreyedOut ? "text-stone-300 dark:text-stone-700" : "text-stone-600 dark:text-stone-300"
                                                     )}>{guru.description}</p>
 
-                                                    {/* Intake status badge */}
+                                                    {/* Status badges */}
+                                                    {allIntakesComplete && isCompleted && (
+                                                        <div className="mt-3">
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded-full text-xs font-medium">
+                                                                <Sparkles size={14} /> Get Daily Guidance
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     {inIntakeMode && isSelected && (
                                                         <div className="mt-3">
                                                             {isCompleted ? (
@@ -419,6 +436,13 @@ export default function DashboardPage() {
                     <DailyAlignmentModal
                         isOpen={showAlignment}
                         onClose={() => setShowAlignment(false)}
+                    />
+                )}
+                {dailyGuidanceGuru && (
+                    <GuruDailyGuidance
+                        isOpen={!!dailyGuidanceGuru}
+                        onClose={() => setDailyGuidanceGuru(null)}
+                        guruId={dailyGuidanceGuru}
                     />
                 )}
             </AnimatePresence>

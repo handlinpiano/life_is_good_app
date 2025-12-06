@@ -23,7 +23,7 @@ export default function Navbar() {
             <div className="max-w-4xl mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
                     <Link to="/dashboard" className="font-serif font-bold text-xl text-amber-600 dark:text-amber-500">
-                        Life Guru
+                        Vedicas
                     </Link>
 
                     <div className="flex gap-1">

@@ -7,7 +7,7 @@ import { Send, User, Sparkles, ArrowRight, Sprout, Check, CheckCircle, RotateCcw
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion'; // Unused for now
 import Navbar from '../components/Navbar';
 
 const GURU_PERSONAS = {
@@ -155,7 +155,7 @@ export default function GuruIntakePage() {
     );
 
     const guru = GURU_PERSONAS[guruId] || {
-        name: 'Life Guru',
+        name: 'Vedic Guide',
         role: 'Life Coach',
         topics: 'your general life goals and happiness',
         icon: '✨',

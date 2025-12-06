@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, addSeed, waterSeed, deleteSeed, SEED_DIFFICULTIES } from '../utils/db';
 import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy } from 'lucide-react';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion'; // Unused for now
 import Navbar from '../components/Navbar';
 
 const CATEGORY_COLORS = {

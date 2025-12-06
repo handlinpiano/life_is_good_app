@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion'; // Unused for now
 import BirthForm from '../components/BirthForm';
 
 export default function IntakePage() {
@@ -37,10 +37,10 @@ export default function IntakePage() {
             >
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-deco font-bold text-amber-900 dark:text-amber-100 mb-2">
-                        Life Guru
+                        Vedicas
                     </h1>
                     <p className="text-amber-800/80 dark:text-amber-200/80">
-                        Let's start by understanding your cosmic blueprint.
+                        Your Vedic Astrology System for life alignment.
                     </p>
                 </div>
 

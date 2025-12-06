@@ -123,7 +123,7 @@ export const useStore = create(
             })
         }),
         {
-            name: 'life-guru-storage',
+            name: 'vedicas-storage',
             partialize: (state) => ({
                 user: state.user,
                 chart: state.chart,
