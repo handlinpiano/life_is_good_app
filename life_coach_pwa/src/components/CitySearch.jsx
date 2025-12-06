@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { City, Country } from 'country-state-city'
 
 // Get all cities once on load
@@ -32,9 +32,7 @@ export default function CitySearch({ onSelect, value }) {
   }, [query])
 
   // Reset highlight when results change
-  useEffect(() => {
-    setHighlighted(0)
-  }, [filteredCities])
+
 
   const handleKeyDown = (e) => {
     if (!isOpen) return
@@ -101,11 +99,10 @@ export default function CitySearch({ onSelect, value }) {
           {filteredCities.map((city, idx) => (
             <li
               key={`${city.name}-${city.stateCode}-${city.countryCode}`}
-              className={`px-3 py-2 cursor-pointer flex justify-between ${
-                idx === highlighted
-                  ? 'bg-amber-100 text-amber-900'
-                  : 'hover:bg-amber-50'
-              }`}
+              className={`px-3 py-2 cursor-pointer flex justify-between ${idx === highlighted
+                ? 'bg-amber-100 text-amber-900'
+                : 'hover:bg-amber-50'
+                }`}
               onMouseEnter={() => setHighlighted(idx)}
               onMouseDown={() => selectCity(city)}
             >

@@ -1,13 +1,13 @@
-```javascript
 import { useState } from 'react';
 import { useAstrology } from '../context/AstrologyContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
 import PlanetTable from '../components/PlanetTable';
+// import { calculateCompatibility } from '../utils/api'; // Removed
 
 const GURUS = [
     {
@@ -109,7 +109,7 @@ function PartnerModal({ isOpen, onClose, onSubmit, loading, error }) {
 }
 
 export default function DashboardPage() {
-    const { birthData, loading: loadingAstrology } = useAstrology();
+    const { birthData, chart, loading, error, calculateCompatibility } = useAstrology();
     const navigate = useNavigate();
     const [selectedGurus, setSelectedGurus] = useState([]);
     const [showPartnerModal, setShowPartnerModal] = useState(false);
@@ -133,7 +133,7 @@ export default function DashboardPage() {
         // Proceed to Intake for the first selected Guru
         // In the future, we could have a "Hub" or iterate through them
         const firstGuruId = selectedGurus[0];
-        navigate(`/ intake / ${ firstGuruId } `);
+        navigate('/intake/' + firstGuruId);
     };
 
     const handlePartnerSubmit = async (data) => {
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </section>
+                </div>
 
                 <section className="text-center space-y-2">
                     <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">Choose Your Guides</h2>
@@ -246,7 +246,7 @@ export default function DashboardPage() {
                                         className={clsx(
                                             "cursor-pointer rounded-xl p-4 border-2 transition-all relative overflow-hidden",
                                             isSelected
-                                                ? `border - amber - 500 bg - white shadow - md dark: bg - slate - 800`
+                                                ? 'border-amber-500 bg-white shadow-md dark:bg-slate-800'
                                                 : "border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md"
                                         )}
                                     >

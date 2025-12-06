@@ -1,11 +1,8 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAstrology } from '../context/AstrologyContext';
 import BirthForm from '../components/BirthForm';
-import { motion } from 'framer-motion';
-
 export default function IntakePage() {
-    const { calculateBirthChart, loading, error, chart } = useAstrology();
+    const { calculateBirthChart, loading, error } = useAstrology();
     const navigate = useNavigate();
 
     const handleSubmit = async (data) => {

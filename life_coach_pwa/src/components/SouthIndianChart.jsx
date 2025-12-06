@@ -53,14 +53,6 @@ export default function SouthIndianChart({ chart, mini = false, vargaPlanets = n
     planetsBySign[signNum].push(PLANET_ABBREV[name] || name)
   })
 
-  const getCellPosition = (signNum) => {
-    const pos = signPositions[signNum]
-    return {
-      x: padding + pos.col * cellSize,
-      y: padding + pos.row * cellSize,
-    }
-  }
-
   return (
     <div className="w-full">
       <svg viewBox="0 0 400 400" className={mini ? 'w-full max-w-[12rem] mx-auto' : 'w-full h-auto max-w-md mx-auto aspect-square'}>

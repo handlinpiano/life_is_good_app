@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { X, Sun, Moon, Sparkles, Loader2 } from 'lucide-react';
 import { getAlignment, chatWithChart } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
@@ -14,6 +14,7 @@ export default function DailyAlignmentModal({ isOpen, onClose, birthData }) {
         if (isOpen && birthData) {
             loadAlignment();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, birthData]);
 
     const loadAlignment = async () => {

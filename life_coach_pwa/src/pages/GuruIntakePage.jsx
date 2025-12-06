@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAstrology } from '../context/AstrologyContext';
 import { chatWithChart, getAlignment } from '../utils/api';
 import { db, addSeed } from '../utils/db';
-import { motion } from 'framer-motion';
 import { Send, User, Sparkles, ArrowRight, Sprout, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
@@ -157,6 +156,7 @@ export default function GuruIntakePage() {
         };
 
         startIntake();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [guruId, birthData, navigate, history]); // Dependencies crucial here
 
     const handleSend = async (e) => {
@@ -243,7 +243,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
         }
     };
 
-    const handleAcceptSeed = async (offer, messageId) => {
+    const handleAcceptSeed = async (offer) => {
         await addSeed(offer.title, offer.category, offer.description, offer.difficulty, guruId);
 
         // We need to mark this specific message/offer as "accepted" in the DB so it persists
@@ -254,7 +254,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
     };
 
     // Helper to render content with potential seed offers
-    const renderMessageContent = (content, msgId) => {
+    const renderMessageContent = (content) => {
         // Regex to find [OFFER_SEED: { ... }]
         // Note: AI might put it anywhere.
         const seedRegex = /\[OFFER_SEED:\s*({.*?})\]/s;
@@ -277,7 +277,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                     {offerData && (
                         <SeedOfferCard
                             offer={offerData}
-                            onAccept={(offer) => handleAcceptSeed(offer, msgId)}
+                            onAccept={(offer) => handleAcceptSeed(offer)}
                             accepted={false} // Todo: Track acceptance state
                         />
                     )}
@@ -332,7 +332,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                                 ? "bg-white text-stone-800 rounded-tr-none border border-stone-100"
                                 : "bg-white dark:bg-slate-800 text-stone-800 dark:text-stone-200 rounded-tl-none border border-stone-100 dark:border-stone-700"
                         )}>
-                            {renderMessageContent(msg.content, msg.id)}
+                            {renderMessageContent(msg.content)}
                         </div>
                     </motion.div>
                 ))}

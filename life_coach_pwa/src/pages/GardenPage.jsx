@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, addSeed, waterSeed, deleteSeed, SEED_DIFFICULTIES } from '../utils/db';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
@@ -207,8 +206,6 @@ export default function GardenPage() {
     // Calculate Stats
     let maxPossibleScore = 0;
     let currentScore = 0;
-    let seedsWateredCount = 0;
-    const totalSeeds = seeds?.length || 0;
 
     seeds?.forEach(seed => {
         const points = (SEED_DIFFICULTIES[seed.difficulty] || SEED_DIFFICULTIES.Medium).points;
@@ -217,7 +214,6 @@ export default function GardenPage() {
         const isCompleted = logsBySeed?.[seed.id]?.some(log => log.date === today);
         if (isCompleted) {
             currentScore += points;
-            seedsWateredCount++;
         }
     });
 
