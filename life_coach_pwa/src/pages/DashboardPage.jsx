@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, ChevronUp, User, Users, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, CheckCircle, MessageCircle } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, MessageCircle } from 'lucide-react';
 import clsx from 'clsx';
 import BirthForm from '../components/BirthForm';
 import NorthIndianChart from '../components/NorthIndianChart';
 import DailyAlignmentModal from '../components/DailyAlignmentModal';
-import GuruDailyGuidance from '../components/GuruDailyGuidance';
 import PlanetTable from '../components/PlanetTable';
 import DivisionalCharts from '../components/DivisionalCharts';
 import Navbar from '../components/Navbar';
@@ -117,58 +116,15 @@ export default function DashboardPage() {
     const loading = useStore(state => state.loading);
     const error = useStore(state => state.error);
     const calculateCompatibility = useStore(state => state.calculateCompatibility);
-    const selectedGurus = useStore(state => state.selectedGurus);
-    const setSelectedGurus = useStore(state => state.setSelectedGurus);
-    const completedIntakes = useStore(state => state.completedIntakes);
 
     const navigate = useNavigate();
     const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [showBlueprint, setShowBlueprint] = useState(false);
     const [showAlignment, setShowAlignment] = useState(false);
-    const [dailyGuidanceGuru, setDailyGuidanceGuru] = useState(null);
 
-    // Check if we're in "intake mode" (gurus selected but not all completed)
-    const hasSelectedGurus = selectedGurus.length > 0;
-    const allIntakesComplete = hasSelectedGurus && selectedGurus.every(id => completedIntakes.includes(id));
-    const inIntakeMode = hasSelectedGurus && !allIntakesComplete;
-
-    const toggleGuru = (id) => {
-        // Don't allow changes if in intake mode
-        if (inIntakeMode) return;
-
-        const newSelection = selectedGurus.includes(id)
-            ? selectedGurus.filter(g => g !== id)
-            : [...selectedGurus, id];
-        setSelectedGurus(newSelection);
-    };
-
-    const handleStartJourney = () => {
-        if (selectedGurus.length === 0) {
-            alert("Please select at least one Guide to begin your journey.");
-            return;
-        }
-        // Find first incomplete guru
-        const nextGuru = selectedGurus.find(id => !completedIntakes.includes(id));
-        if (nextGuru) {
-            navigate('/intake/' + nextGuru);
-        }
-    };
-
+    // Simply navigate to chat with the guru
     const handleGuruClick = (guruId) => {
-        const isCompleted = completedIntakes.includes(guruId);
-        const isSelected = selectedGurus.includes(guruId);
-
-        if (allIntakesComplete && isCompleted) {
-            // All intakes done - clicking a completed guru shows daily guidance
-            setDailyGuidanceGuru(guruId);
-        } else if (inIntakeMode) {
-            // In intake mode, only allow clicking selected gurus
-            if (isSelected) {
-                navigate('/intake/' + guruId);
-            }
-        } else {
-            toggleGuru(guruId);
-        }
+        navigate('/chat/' + guruId);
     };
 
     const handlePartnerSubmit = async (data) => {
@@ -182,7 +138,7 @@ export default function DashboardPage() {
         const success = await calculateCompatibility(birth_data);
         if (success) {
             setShowPartnerModal(false);
-            navigate('/intake/life_romance');
+            navigate('/chat/life_romance');
         }
     };
 
@@ -279,14 +235,10 @@ export default function DashboardPage() {
 
                     <section className="text-center space-y-2">
                         <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">
-                            {allIntakesComplete ? "Your Guides" : inIntakeMode ? "Your Guides" : "Choose Your Guides"}
+                            Your Guides
                         </h2>
                         <p className="text-stone-600 dark:text-stone-400 max-w-lg mx-auto">
-                            {allIntakesComplete
-                                ? "Click on any guide for personalized daily guidance based on today's cosmic alignment."
-                                : inIntakeMode
-                                    ? "Complete your intake with each selected guide. Click on a guide to continue or start their intake."
-                                    : "Select the Gurus you wish to consult. You can choose one or multiple across different areas of life."}
+                            Click on any guide to chat. They remember your conversations and know your chart.
                         </p>
                     </section>
 
@@ -297,88 +249,30 @@ export default function DashboardPage() {
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 {GURUS.filter(g => g.category === category).map(guru => {
-                                    const isSelected = selectedGurus.includes(guru.id);
-                                    const isCompleted = completedIntakes.includes(guru.id);
                                     const Icon = guru.icon;
-
-                                    // In intake mode, grey out unselected gurus
-                                    const isGreyedOut = inIntakeMode && !isSelected;
 
                                     return (
                                         <motion.div
                                             key={guru.id}
-                                            whileHover={!isGreyedOut ? { scale: 1.02 } : {}}
-                                            whileTap={!isGreyedOut ? { scale: 0.98 } : {}}
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
                                             onClick={() => handleGuruClick(guru.id)}
-                                            className={clsx(
-                                                "rounded-xl p-4 border-2 transition-all relative overflow-hidden",
-                                                isGreyedOut
-                                                    ? "opacity-40 cursor-not-allowed border-transparent bg-stone-100 dark:bg-slate-900"
-                                                    : "cursor-pointer",
-                                                !isGreyedOut && isSelected && isCompleted
-                                                    ? 'border-green-500 bg-green-50 shadow-md dark:bg-green-900/20'
-                                                    : !isGreyedOut && isSelected
-                                                        ? 'border-amber-500 bg-white shadow-md dark:bg-slate-800'
-                                                        : !isGreyedOut && "border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md"
-                                            )}
+                                            className="rounded-xl p-4 border-2 border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md cursor-pointer transition-all"
                                         >
                                             <div className="flex items-start gap-4">
-                                                <div className={clsx(
-                                                    "p-3 rounded-lg transition-all",
-                                                    isGreyedOut ? "bg-stone-200 text-stone-400 dark:bg-slate-700" : guru.color
-                                                )}>
+                                                <div className={clsx("p-3 rounded-lg", guru.color)}>
                                                     <Icon size={24} />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h4 className={clsx(
-                                                        "font-bold text-lg",
-                                                        isGreyedOut ? "text-stone-400 dark:text-stone-600" : "dark:text-white"
-                                                    )}>{guru.name}</h4>
-                                                    <p className={clsx(
-                                                        "text-sm font-medium mb-1",
-                                                        isGreyedOut ? "text-stone-300 dark:text-stone-700" : "text-stone-500 dark:text-stone-400"
-                                                    )}>{guru.title}</p>
-                                                    <p className={clsx(
-                                                        "text-sm",
-                                                        isGreyedOut ? "text-stone-300 dark:text-stone-700" : "text-stone-600 dark:text-stone-300"
-                                                    )}>{guru.description}</p>
-
-                                                    {/* Status badges */}
-                                                    {allIntakesComplete && isCompleted && (
-                                                        <div className="mt-3">
-                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded-full text-xs font-medium">
-                                                                <Sparkles size={14} /> Get Daily Guidance
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {inIntakeMode && isSelected && (
-                                                        <div className="mt-3">
-                                                            {isCompleted ? (
-                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium">
-                                                                    <CheckCircle size={14} /> Intake Complete
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full text-xs font-medium">
-                                                                    <MessageCircle size={14} /> Start Intake
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                    <h4 className="font-bold text-lg dark:text-white">{guru.name}</h4>
+                                                    <p className="text-sm font-medium mb-1 text-stone-500 dark:text-stone-400">{guru.title}</p>
+                                                    <p className="text-sm text-stone-600 dark:text-stone-300">{guru.description}</p>
+                                                    <div className="mt-3">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded-full text-xs font-medium">
+                                                            <MessageCircle size={14} /> Chat Now
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                {isSelected && !inIntakeMode && (
-                                                    <div className="absolute top-4 right-4 text-amber-500">
-                                                        <div className="h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs">
-                                                            ✓
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {isSelected && isCompleted && (
-                                                    <div className="absolute top-4 right-4">
-                                                        <div className="h-6 w-6 rounded-full bg-green-500 text-white flex items-center justify-center">
-                                                            <CheckCircle size={14} />
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
                                         </motion.div>
                                     );
@@ -388,35 +282,13 @@ export default function DashboardPage() {
                     ))}
 
                     <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-t border-stone-200 dark:border-stone-800 z-20">
-                        <div className="max-w-4xl mx-auto flex justify-between items-center">
-                            <div className="text-sm text-stone-500">
-                                {inIntakeMode ? (
-                                    <span>{completedIntakes.filter(id => selectedGurus.includes(id)).length} / {selectedGurus.length} intakes complete</span>
-                                ) : (
-                                    <span>{selectedGurus.length} Gurus selected</span>
-                                )}
-                            </div>
-                            {allIntakesComplete ? (
-                                <button
-                                    onClick={() => navigate('/garden')}
-                                    className="px-6 py-2 rounded-full font-bold transition-colors bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20"
-                                >
-                                    Go to Garden →
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={handleStartJourney}
-                                    className={clsx(
-                                        "px-6 py-2 rounded-full font-bold transition-colors",
-                                        selectedGurus.length > 0
-                                            ? "bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/20"
-                                            : "bg-stone-200 text-stone-400 cursor-not-allowed"
-                                    )}
-                                    disabled={selectedGurus.length === 0}
-                                >
-                                    {inIntakeMode ? "Continue Intake →" : "Start Journey →"}
-                                </button>
-                            )}
+                        <div className="max-w-4xl mx-auto flex justify-end items-center">
+                            <button
+                                onClick={() => navigate('/garden')}
+                                className="px-6 py-2 rounded-full font-bold transition-colors bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20"
+                            >
+                                Go to Garden →
+                            </button>
                         </div>
                     </div>
                 </main>
@@ -436,13 +308,6 @@ export default function DashboardPage() {
                     <DailyAlignmentModal
                         isOpen={showAlignment}
                         onClose={() => setShowAlignment(false)}
-                    />
-                )}
-                {dailyGuidanceGuru && (
-                    <GuruDailyGuidance
-                        isOpen={!!dailyGuidanceGuru}
-                        onClose={() => setDailyGuidanceGuru(null)}
-                        guruId={dailyGuidanceGuru}
                     />
                 )}
             </AnimatePresence>

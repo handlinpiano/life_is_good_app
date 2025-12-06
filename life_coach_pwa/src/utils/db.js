@@ -1,6 +1,35 @@
 import Dexie from 'dexie';
+import {
+    isOnline,
+    syncSeeds,
+    syncLogs,
+    syncWisdom,
+    syncMessages,
+    syncCheckins,
+    deleteSeedRemote,
+    deleteWisdomRemote
+} from './supabase';
 
 export const db = new Dexie('VedicasGarden');
+
+// Helper to get current user ID for sync
+let getCurrentUserId = null;
+export const setUserIdGetter = (getter) => {
+    getCurrentUserId = getter;
+};
+
+// Debounced sync to avoid too many cloud updates
+let syncTimeout = null;
+const debouncedSync = (syncFn, data) => {
+    if (!isOnline() || !getCurrentUserId) return;
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        const userId = getCurrentUserId();
+        if (userId) {
+            await syncFn(userId, data);
+        }
+    }, 1000); // Wait 1 second before syncing
+};
 
 // Version 1 (Implied base)
 // Version 2: Added difficulty
@@ -29,6 +58,15 @@ db.version(4).stores({
     checkins: '++id, &date, panchang, seeds_watered, seeds_total, timestamp'
 });
 
+// Version 5: Wisdom Notes from Gurus
+db.version(5).stores({
+    seeds: '++id, title, category, frequency, difficulty, created_at, gurus_id',
+    logs: '++id, seed_id, date, status',
+    messages: '++id, guru_id, role, content, timestamp',
+    checkins: '++id, &date, panchang, seeds_watered, seeds_total, timestamp',
+    wisdom: '++id, title, category, content, guru_id, created_at'
+});
+
 export const SEED_CATEGORIES = {
     HEALTH: 'Health',
     SPIRITUAL: 'Spiritual',
@@ -45,7 +83,7 @@ export const SEED_DIFFICULTIES = {
 };
 
 export const addSeed = async (title, category, description = '', difficulty = 'Medium', guruId = null) => {
-    return await db.seeds.add({
+    const id = await db.seeds.add({
         title,
         category,
         description,
@@ -54,6 +92,12 @@ export const addSeed = async (title, category, description = '', difficulty = 'M
         frequency: 'daily',
         created_at: new Date()
     });
+
+    // Sync to cloud
+    const seeds = await db.seeds.toArray();
+    debouncedSync(syncSeeds, seeds);
+
+    return id;
 };
 
 export const waterSeed = async (seedId, date_str) => {
@@ -64,12 +108,18 @@ export const waterSeed = async (seedId, date_str) => {
 
     if (existing) return existing.id;
 
-    return await db.logs.add({
+    const id = await db.logs.add({
         seed_id: seedId,
         date: date_str,
         status: 'completed',
         timestamp: new Date()
     });
+
+    // Sync to cloud
+    const logs = await db.logs.toArray();
+    debouncedSync(syncLogs, logs);
+
+    return id;
 };
 
 export const getSeedLogs = async (seedId) => {
@@ -84,6 +134,59 @@ export const deleteSeed = async (id) => {
     await db.seeds.delete(id);
     // Also delete associated logs
     await db.logs.where('seed_id').equals(id).delete();
+
+    // Sync deletion to cloud
+    if (isOnline() && getCurrentUserId) {
+        const userId = getCurrentUserId();
+        if (userId) {
+            await deleteSeedRemote(userId, id);
+        }
+    }
+};
+
+// ============================================
+// WISDOM NOTES FUNCTIONS
+// ============================================
+
+export const WISDOM_CATEGORIES = {
+    RECIPE: 'Recipe',
+    PRACTICE: 'Practice',
+    INSIGHT: 'Insight',
+    MANTRA: 'Mantra',
+    REMINDER: 'Reminder',
+    GENERAL: 'General'
+};
+
+export const addWisdom = async (title, category, content, guruId = null) => {
+    const id = await db.wisdom.add({
+        title,
+        category,
+        content,
+        guru_id: guruId,
+        created_at: new Date()
+    });
+
+    // Sync to cloud
+    const wisdom = await db.wisdom.toArray();
+    debouncedSync(syncWisdom, wisdom);
+
+    return id;
+};
+
+export const getAllWisdom = async () => {
+    return await db.wisdom.orderBy('created_at').reverse().toArray();
+};
+
+export const deleteWisdom = async (id) => {
+    await db.wisdom.delete(id);
+
+    // Sync deletion to cloud
+    if (isOnline() && getCurrentUserId) {
+        const userId = getCurrentUserId();
+        if (userId) {
+            await deleteWisdomRemote(userId, id);
+        }
+    }
 };
 
 // ============================================
@@ -96,9 +199,18 @@ export const deleteSeed = async (id) => {
 export const recordCheckin = async (dateStr, panchang, seedsWatered, seedsTotal) => {
     const existing = await db.checkins.where('date').equals(dateStr).first();
 
+    let id;
     if (existing) {
         // Update existing check-in
-        return await db.checkins.update(existing.id, {
+        id = await db.checkins.update(existing.id, {
+            panchang,
+            seeds_watered: seedsWatered,
+            seeds_total: seedsTotal,
+            timestamp: new Date()
+        });
+    } else {
+        id = await db.checkins.add({
+            date: dateStr,
             panchang,
             seeds_watered: seedsWatered,
             seeds_total: seedsTotal,
@@ -106,13 +218,11 @@ export const recordCheckin = async (dateStr, panchang, seedsWatered, seedsTotal)
         });
     }
 
-    return await db.checkins.add({
-        date: dateStr,
-        panchang,
-        seeds_watered: seedsWatered,
-        seeds_total: seedsTotal,
-        timestamp: new Date()
-    });
+    // Sync to cloud
+    const checkins = await db.checkins.toArray();
+    debouncedSync(syncCheckins, checkins);
+
+    return id;
 };
 
 /**
@@ -202,4 +312,17 @@ export const calculateStreak = async () => {
         longest: longestStreak,
         total: checkins.length
     };
+};
+
+// ============================================
+// MESSAGE SYNC HELPER
+// ============================================
+
+export const syncMessagesToCloud = async () => {
+    if (!isOnline() || !getCurrentUserId) return;
+    const userId = getCurrentUserId();
+    if (userId) {
+        const messages = await db.messages.toArray();
+        await syncMessages(userId, messages);
+    }
 };

@@ -20,25 +20,6 @@ export const useStore = create(
                 user: { ...state.user, ...userData }
             })),
 
-            // --- Selected Gurus Slice ---
-            selectedGurus: [],
-            completedIntakes: [], // Track which gurus have completed intake
-
-            setSelectedGurus: (gurus) => set({ selectedGurus: gurus }),
-
-            markIntakeComplete: (guruId) => set((state) => ({
-                completedIntakes: state.completedIntakes.includes(guruId)
-                    ? state.completedIntakes
-                    : [...state.completedIntakes, guruId]
-            })),
-
-            isIntakeComplete: (guruId) => get().completedIntakes.includes(guruId),
-
-            getNextIncompleteGuru: () => {
-                const { selectedGurus, completedIntakes } = get();
-                return selectedGurus.find(id => !completedIntakes.includes(id)) || null;
-            },
-
             // --- Astrology Slice ---
             chart: null,
             dasha: null,
@@ -103,6 +84,10 @@ export const useStore = create(
                 }
             },
 
+            // Direct setters for cloud sync
+            setUser: (userData) => set({ user: userData }),
+            setChart: (chartData) => set({ chart: chartData }),
+
             // --- Reset ---
             resetEverything: () => set({
                 user: {
@@ -117,8 +102,6 @@ export const useStore = create(
                 dasha: null,
                 partner: null,
                 synastry: null,
-                selectedGurus: [],
-                completedIntakes: [],
                 error: null
             })
         }),
@@ -129,9 +112,7 @@ export const useStore = create(
                 chart: state.chart,
                 dasha: state.dasha,
                 partner: state.partner,
-                synastry: state.synastry,
-                selectedGurus: state.selectedGurus,
-                completedIntakes: state.completedIntakes
+                synastry: state.synastry
             }),
         }
     )
