@@ -2,8 +2,8 @@ import axios from 'axios'
 
 // API base URL - read from environment variable
 // For local dev: VITE_API_URL=http://127.0.0.1:8000/api in .env
-// For production: Set VITE_API_URL in build environment
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+// For production: Set VITE_API_URL or VITE_API_BASE_URL in build environment
+const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 
 console.log('[API] Using base URL:', API_BASE)
 
