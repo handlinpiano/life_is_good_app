@@ -14,21 +14,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for frontend
+# CORS for frontend - allow all origins for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8090",  # PocketBase local
-        "http://localhost:8090",
-        "https://www.vedicas.com",  # Production domain
-        "https://vedicas.com",
-        "https://lifecoach-d9t3e249d-handlinpianos-projects.vercel.app",  # Vercel preview
-        "*",  # Allow all origins for now (will restrict in production)
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Must be False when using "*" for origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
