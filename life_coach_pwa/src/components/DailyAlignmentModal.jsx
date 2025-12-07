@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
+import { useQuery } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { X, Sun, Moon, Sparkles, Loader2, Sprout, RefreshCw, Flame, Calendar, ChevronLeft } from 'lucide-react';
 import { getAlignment, chat } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
@@ -52,12 +55,14 @@ const GURU_CONFIG = {
 
 export default function DailyAlignmentModal({ isOpen, onClose }) {
     const user = useStore(state => state.user);
-    const seeds = useStore(state => state.seeds);
-    const logs = useStore(state => state.logs);
     const checkins = useStore(state => state.checkins);
     const recordCheckin = useStore(state => state.recordCheckin);
     const calculateStreak = useStore(state => state.calculateStreak);
     const birthData = user.birthData;
+    const { isAuthenticated } = useConvexAuth();
+
+    // Get seeds from Convex (single source of truth)
+    const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip") || [];
 
     const [alignment, setAlignment] = useState(null);
     const [guruGuidance, setGuruGuidance] = useState({});
@@ -67,7 +72,6 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
     const [showHistory, setShowHistory] = useState(false);
 
     const today = getLocalDateString();
-    const todayLogs = logs.filter(l => l.date === today);
 
     // Get check-in history (last 30)
     const sortedCheckins = [...checkins]
@@ -96,7 +100,7 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
             setAlignment(data);
 
             // Record check-in for streak tracking
-            const seedsWatered = todayLogs.length;
+            const seedsWatered = seeds.filter(s => s.completedDates?.includes(today)).length;
             const seedsTotal = seeds.length;
             recordCheckin(today, {
                 tithi: data.tithi.name,
@@ -140,7 +144,7 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
             // Get seeds for this guru's domain
             const guruSeeds = seeds.filter(s => guru.seedCategories.includes(s.category));
             const seedList = guruSeeds.map(s => {
-                const watered = todayLogs.some(log => log.seed_id === s.id);
+                const watered = s.completedDates?.includes(today);
                 return `${s.title}${watered ? ' [DONE]' : ''}`;
             }).join(', ') || 'none yet';
 
