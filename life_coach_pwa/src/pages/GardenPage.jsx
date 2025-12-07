@@ -7,6 +7,7 @@ import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy, Pencil } fro
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import { getLocalDateString } from '../utils/constants';
 
 const CATEGORY_COLORS = {
     Health: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -119,7 +120,7 @@ function SeedCard({ seed }) {
     const upsertSeed = useMutation(api.seeds.upsert);
     const removeSeed = useMutation(api.seeds.remove);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const isWateredToday = seed.completedDates?.includes(today);
     const [justWatered, setJustWatered] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -306,7 +307,7 @@ export default function GardenPage() {
     const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip") || [];
 
     // Calculate Score
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
 
     // Calculate Stats
     let maxPossibleScore = 0;

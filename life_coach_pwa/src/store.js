@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { calculateChart, calculateDasha, calculateSynastry } from './utils/api';
+import { getLocalDateString } from './utils/constants';
 
 // Store the current user ID getter (set by AuthContext)
 let _getCurrentUserId = () => null;
@@ -193,8 +194,8 @@ export const useStore = create(
 
                 if (checkins.length === 0) return { current: 0, longest: 0, total: 0 };
 
-                const today = new Date().toISOString().split('T')[0];
-                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                const today = getLocalDateString();
+                const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
 
                 let longestStreak = 0;
                 let tempStreak = 0;

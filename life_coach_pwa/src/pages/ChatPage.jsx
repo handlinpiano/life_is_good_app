@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import { getLocalDateString } from '../utils/constants';
 
 // Component to display a Seed Offer inside the chat
 function SeedOfferCard({ offer, onAccept, accepted }) {
@@ -115,7 +116,7 @@ export default function ChatPage() {
     const [showRestartConfirm, setShowRestartConfirm] = useState(false);
     const messagesEndRef = useRef(null);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const latestCheckin = checkins.length > 0
         ? checkins.reduce((latest, c) => c.date > latest.date ? c : latest, checkins[0])
         : null;
@@ -144,6 +145,11 @@ export default function ChatPage() {
     // Build system prompt fresh each time (not stored)
     const buildSystemPrompt = () => {
         const chartText = formatChartAsText(chart, dasha);
+
+        // Current date/time context for the guru
+        const now = new Date();
+        const dateContext = `Current date: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Current time: ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
 
         // Seeds with today's completion status
         let seedContext = '';
@@ -188,6 +194,8 @@ Reference today's energy when relevant to my questions.`;
         }
 
         return `You are a wise Vedic life guide - an omniscient spiritual mentor who integrates ancient wisdom with practical modern guidance.
+
+${dateContext}
 
 I am ${user.name || 'a seeker'}.
 

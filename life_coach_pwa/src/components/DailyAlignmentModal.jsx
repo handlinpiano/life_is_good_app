@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { X, Sun, Moon, Sparkles, Loader2, Sprout, RefreshCw, Flame, Calendar, ChevronLeft } from 'lucide-react';
 import { getAlignment, chat } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
+import { getLocalDateString } from '../utils/constants';
 
 const GURU_CONFIG = {
     'health_ayurveda': {
@@ -65,7 +66,7 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
     const [streak, setStreak] = useState({ current: 0, longest: 0, total: 0 });
     const [showHistory, setShowHistory] = useState(false);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const todayLogs = logs.filter(l => l.date === today);
 
     // Get check-in history (last 30)
@@ -143,7 +144,21 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
                 return `${s.title}${watered ? ' [DONE]' : ''}`;
             }).join(', ') || 'none yet';
 
-            const systemPrompt = `You are ${guru.name}, a Vedic wisdom guide. Give a BRIEF 2-3 sentence daily tip focusing on ${guru.focus}. Be specific to today's cosmic energy. One actionable insight only. No greetings or sign-offs.`;
+            // Current date/time for context
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            // User profile context
+            const userName = user.name || 'Seeker';
+            const profileParts = [
+                user.gender,
+                user.relationshipStatus,
+                user.sexualOrientation
+            ].filter(Boolean);
+            const profileStr = profileParts.length > 0 ? ` (${profileParts.join(', ')})` : '';
+
+            const systemPrompt = `You are ${guru.name}, a Vedic wisdom guide speaking to ${userName}${profileStr}. Today is ${dateStr}, ${timeStr}. Give a BRIEF 2-3 sentence daily tip focusing on ${guru.focus}. Be specific to today's cosmic energy and personalize for the seeker. One actionable insight only. No greetings or sign-offs.`;
 
             const userMessage = `Today's Energy: ${alignData.tithi.name} (${alignData.tithi.paksha}), Moon in ${alignData.moon_nakshatra.name}, ${alignData.vara.name} (ruled by ${alignData.vara.lord}).
 
