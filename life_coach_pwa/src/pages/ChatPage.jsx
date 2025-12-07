@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useStore, SEED_CATEGORIES, WISDOM_CATEGORIES } from '../store';
+import { useStore, SEED_CATEGORIES, WISDOM_CATEGORIES, SEED_DIFFICULTIES } from '../store';
 import { chat, formatChartAsText } from '../utils/api';
 import { Send, User, Sparkles, ArrowLeft, Sprout, Check, RotateCcw, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -151,19 +151,36 @@ export default function ChatPage() {
         const dateContext = `Current date: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Current time: ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
 
-        // Seeds with today's completion status
+        // Seeds with today's completion status and score
         let seedContext = '';
         if (seeds.length > 0) {
+            let totalPoints = 0;
+            let earnedPoints = 0;
+            let completedCount = 0;
+
             const seedList = seeds.map(s => {
                 const wateredToday = s.completedDates?.includes(today);
-                return `- ${s.title} (${s.category}) ${wateredToday ? '✓ done today' : '○ not yet today'}`;
+                const points = (SEED_DIFFICULTIES[s.difficulty] || SEED_DIFFICULTIES.Medium).points;
+                totalPoints += points;
+                if (wateredToday) {
+                    earnedPoints += points;
+                    completedCount++;
+                }
+                return `- ${s.title} (${s.category}, ${points}pts) ${wateredToday ? '✓ done' : '○ not yet'}`;
             }).join('\n');
+
+            const remainingCount = seeds.length - completedCount;
+            const remainingPoints = totalPoints - earnedPoints;
+
             seedContext = `
 
 MY GARDEN (daily practices I'm cultivating):
 ${seedList}
 
-Encourage me on practices not yet done today. Don't suggest seeds I already have.`;
+TODAY'S PROGRESS: ${earnedPoints}/${totalPoints} points (${completedCount} of ${seeds.length} seeds watered)
+${remainingCount > 0 ? `REMAINING: ${remainingCount} seeds worth ${remainingPoints} points` : 'ALL SEEDS WATERED TODAY! 🎉'}
+
+${remainingCount > 0 ? 'Encourage me on practices not yet done today.' : 'Celebrate my completion!'} Don't suggest seeds I already have.`;
         }
 
         // Wisdom notes summary
