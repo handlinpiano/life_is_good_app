@@ -1,16 +1,97 @@
-# React + Vite
+# Vedicas - Vedic Astrology Life Coach PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Progressive Web App for Vedic astrology-based life coaching.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Frontend**: React + Vite, deployed on Vercel
+- **Backend API**: FastAPI (Python), deployed on Railway
+- **Auth**: Clerk
+- **Database**: Convex
 
-## React Compiler
+## Environment Variables
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Required for Production
 
-## Expanding the ESLint configuration
+Create a `.env.production` file (already exists) with:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```env
+VITE_API_URL=https://lifeisgoodapp-production.up.railway.app/api
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2F1c2FsLWFsaWVuLTIyLmNsZXJrLmFjY291bnRzLmRldiQ
+VITE_CONVEX_URL=https://honorable-dog-90.convex.cloud
+```
+
+### For Local Development
+
+Create a `.env` file with:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000/api
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2F1c2FsLWFsaWVuLTIyLmNsZXJrLmFjY291bnRzLmRldiQ
+VITE_CONVEX_URL=https://honorable-dog-90.convex.cloud
+```
+
+## Deployment
+
+### Frontend (Vercel)
+
+The frontend auto-deploys from git, but the `.env.production` file ensures the correct API URL is used.
+
+To manually deploy:
+
+```bash
+cd life_coach_pwa
+vercel --prod --force
+```
+
+The `--force` flag ensures a fresh build without cache.
+
+### Backend (Railway)
+
+The backend auto-deploys when you push to the `master` branch:
+
+```bash
+git push origin master
+```
+
+Railway URL: `https://lifeisgoodapp-production.up.railway.app`
+
+## Local Development
+
+1. Start the backend:
+   ```bash
+   cd vedic_astrology/backend
+   python main.py
+   ```
+
+2. Start the frontend:
+   ```bash
+   cd life_coach_pwa
+   npm run dev
+   ```
+
+## Troubleshooting
+
+### API calls fail on mobile but work on desktop
+
+This usually means the production build has the wrong API URL baked in. Check:
+
+1. Verify `.env.production` has the correct `VITE_API_URL`
+2. Redeploy with `vercel --prod --force`
+3. Clear browser cache / PWA cache on mobile
+
+### CORS errors
+
+The backend CORS is configured to allow all origins:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+Note: `allow_credentials=False` is required when using `"*"` for origins.
