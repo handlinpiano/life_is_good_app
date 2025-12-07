@@ -11,6 +11,7 @@ import DailyAlignmentModal from '../components/DailyAlignmentModal';
 import PlanetTable from '../components/PlanetTable';
 import DivisionalCharts from '../components/DivisionalCharts';
 import Navbar from '../components/Navbar';
+import ScriptureCard from '../components/ScriptureCard';
 import { getLocalDateString } from '../utils/constants';
 
 // Get time-appropriate greeting
@@ -142,6 +143,9 @@ export default function DashboardPage() {
                 </header>
 
                 <main className="max-w-4xl mx-auto px-4 py-6 space-y-4 pb-24">
+                    {/* Daily Scripture */}
+                    <ScriptureCard />
+
                     {/* Primary Actions - Consistent Card Style */}
                     <div className="grid gap-4">
                         {/* Daily Cosmic Alignment */}
