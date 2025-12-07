@@ -3,7 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useConvexAuth } from 'convex/react';
 import { SEED_DIFFICULTIES } from '../store';
-import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy } from 'lucide-react';
+import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
@@ -32,6 +32,7 @@ function PlantSeedModal({ isOpen, onClose }) {
             title,
             category,
             description,
+            difficulty,
             streak: 0,
             completedDates: [],
             active: true
@@ -121,11 +122,31 @@ function SeedCard({ seed }) {
     const today = new Date().toISOString().split('T')[0];
     const isWateredToday = seed.completedDates?.includes(today);
     const [justWatered, setJustWatered] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isEditingDifficulty, setIsEditingDifficulty] = useState(false);
 
     // Fallback if older seeds don't have difficulty
     const diffInfo = SEED_DIFFICULTIES[seed.difficulty] || SEED_DIFFICULTIES.Medium;
 
-    const handleWater = async () => {
+    const handleDifficultyChange = async (e) => {
+        e.stopPropagation();
+        const newDifficulty = e.target.value;
+        await upsertSeed({
+            localId: seed.localId,
+            title: seed.title,
+            category: seed.category || '',
+            description: seed.description || '',
+            difficulty: newDifficulty,
+            streak: seed.streak || 0,
+            lastCompleted: seed.lastCompleted || null,
+            completedDates: seed.completedDates || [],
+            active: seed.active
+        });
+        setIsEditingDifficulty(false);
+    };
+
+    const handleWater = async (e) => {
+        e.stopPropagation();
         if (isWateredToday) return;
         const newCompletedDates = [...(seed.completedDates || []), today];
         await upsertSeed({
@@ -133,6 +154,7 @@ function SeedCard({ seed }) {
             title: seed.title,
             category: seed.category || '',
             description: seed.description || '',
+            difficulty: seed.difficulty || 'Medium',
             streak: (seed.streak || 0) + 1,
             lastCompleted: today,
             completedDates: newCompletedDates,
@@ -142,7 +164,8 @@ function SeedCard({ seed }) {
         setTimeout(() => setJustWatered(false), 2000);
     };
 
-    const handleDelete = async () => {
+    const handleDelete = async (e) => {
+        e.stopPropagation();
         if (confirm('Are you sure you want to uproot this seed?')) {
             await removeSeed({ localId: seed.localId });
         }
@@ -155,58 +178,122 @@ function SeedCard({ seed }) {
             layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-stone-100 dark:border-stone-700 p-5 flex items-center justify-between"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-stone-100 dark:border-stone-700 p-5 cursor-pointer hover:shadow-md transition-shadow"
         >
-            <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className={clsx("text-xs font-bold px-2 py-0.5 rounded-full border", CATEGORY_COLORS[seed.category] || CATEGORY_COLORS.General)}>
-                        {seed.category}
-                    </span>
-                    <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-full", diffInfo.color)}>
-                        {diffInfo.points} pts
-                    </span>
-                    <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg mr-2">{seed.title}</h3>
+            <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className={clsx("text-xs font-bold px-2 py-0.5 rounded-full border", CATEGORY_COLORS[seed.category] || CATEGORY_COLORS.General)}>
+                            {seed.category}
+                        </span>
+                        <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-full", diffInfo.color)}>
+                            {diffInfo.points} pts
+                        </span>
+                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg mr-2">{seed.title}</h3>
+                    </div>
+                    {!isExpanded && seed.description && (
+                        <p className="text-sm text-stone-500 dark:text-stone-400 line-clamp-1">{seed.description}</p>
+                    )}
+                    <div className="mt-3 flex items-center gap-4 text-xs font-medium text-stone-400">
+                        <span className="flex items-center gap-1"><Leaf size={12} /> {streak} days watered</span>
+                    </div>
                 </div>
-                <p className="text-sm text-stone-500 dark:text-stone-400 line-clamp-1">{seed.description}</p>
-                <div className="mt-3 flex items-center gap-4 text-xs font-medium text-stone-400">
-                    <span className="flex items-center gap-1"><Leaf size={12} /> {streak} days watered</span>
+
+                <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                    <button
+                        onClick={handleDelete}
+                        className="p-2 text-stone-300 hover:text-red-400 transition-colors"
+                        title="Remove Seed"
+                    >
+                        <Trash2 size={18} />
+                    </button>
+
+                    <button
+                        onClick={handleWater}
+                        disabled={isWateredToday}
+                        className={clsx(
+                            "h-12 w-12 rounded-full flex items-center justify-center transition-all shadow-md relative overflow-hidden",
+                            isWateredToday
+                                ? "bg-green-100 text-green-600 cursor-default"
+                                : "bg-blue-50 text-blue-500 hover:bg-blue-100 hover:scale-105 active:scale-95"
+                        )}
+                    >
+                        {isWateredToday ? (
+                            <CheckCircle size={24} />
+                        ) : (
+                            <Droplets size={24} />
+                        )}
+
+                        {justWatered && (
+                            <motion.div
+                                initial={{ scale: 0, opacity: 0.5 }}
+                                animate={{ scale: 2, opacity: 0 }}
+                                className="absolute inset-0 bg-blue-400 rounded-full"
+                            />
+                        )}
+                    </button>
                 </div>
             </div>
 
-            <div className="flex items-center gap-3">
-                <button
-                    onClick={handleDelete}
-                    className="p-2 text-stone-300 hover:text-red-400 transition-colors"
-                    title="Remove Seed"
+            {/* Expanded details */}
+            {isExpanded && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 pt-4 border-t border-stone-200 dark:border-stone-700"
                 >
-                    <Trash2 size={18} />
-                </button>
-
-                <button
-                    onClick={handleWater}
-                    disabled={isWateredToday}
-                    className={clsx(
-                        "h-12 w-12 rounded-full flex items-center justify-center transition-all shadow-md relative overflow-hidden",
-                        isWateredToday
-                            ? "bg-green-100 text-green-600 cursor-default"
-                            : "bg-blue-50 text-blue-500 hover:bg-blue-100 hover:scale-105 active:scale-95"
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span className="text-stone-400 dark:text-stone-500">Difficulty</span>
+                            {isEditingDifficulty ? (
+                                <select
+                                    value={seed.difficulty || 'Medium'}
+                                    onChange={handleDifficultyChange}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onBlur={() => setIsEditingDifficulty(false)}
+                                    autoFocus
+                                    className="mt-1 w-full px-2 py-1 rounded border border-stone-300 dark:border-stone-600 dark:bg-slate-700 dark:text-white text-sm focus:ring-2 focus:ring-amber-500"
+                                >
+                                    {Object.keys(SEED_DIFFICULTIES).map(diff => (
+                                        <option key={diff} value={diff}>{diff} ({SEED_DIFFICULTIES[diff].points} pts)</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <p className="font-medium text-stone-700 dark:text-stone-200 flex items-center gap-2">
+                                    {seed.difficulty || 'Medium'}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsEditingDifficulty(true); }}
+                                        className="text-stone-400 hover:text-amber-600 transition-colors"
+                                        title="Edit difficulty"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                </p>
+                            )}
+                        </div>
+                        <div>
+                            <span className="text-stone-400 dark:text-stone-500">Total Completions</span>
+                            <p className="font-medium text-stone-700 dark:text-stone-200">{seed.completedDates?.length || 0}</p>
+                        </div>
+                        <div>
+                            <span className="text-stone-400 dark:text-stone-500">Points per day</span>
+                            <p className="font-medium text-stone-700 dark:text-stone-200">{diffInfo.points} pts</p>
+                        </div>
+                        <div>
+                            <span className="text-stone-400 dark:text-stone-500">Status</span>
+                            <p className="font-medium text-stone-700 dark:text-stone-200">{seed.active ? 'Active' : 'Inactive'}</p>
+                        </div>
+                    </div>
+                    {seed.description && (
+                        <div className="mt-3">
+                            <span className="text-stone-400 dark:text-stone-500 text-sm">Full Description</span>
+                            <p className="text-stone-600 dark:text-stone-300 mt-1">{seed.description}</p>
+                        </div>
                     )}
-                >
-                    {isWateredToday ? (
-                        <CheckCircle size={24} />
-                    ) : (
-                        <Droplets size={24} />
-                    )}
-
-                    {justWatered && (
-                        <motion.div
-                            initial={{ scale: 0, opacity: 0.5 }}
-                            animate={{ scale: 2, opacity: 0 }}
-                            className="absolute inset-0 bg-blue-400 rounded-full"
-                        />
-                    )}
-                </button>
-            </div>
+                </motion.div>
+            )}
         </motion.div>
     );
 }

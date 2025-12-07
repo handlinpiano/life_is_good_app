@@ -27,6 +27,7 @@ export default defineSchema({
     title: v.string(),
     category: v.optional(v.string()),
     description: v.optional(v.string()),
+    difficulty: v.optional(v.string()),
     streak: v.number(),
     lastCompleted: v.optional(v.union(v.string(), v.null())),
     completedDates: v.array(v.string()),

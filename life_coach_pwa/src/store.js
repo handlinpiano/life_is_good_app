@@ -342,9 +342,13 @@ export const SEED_CATEGORIES = {
 };
 
 export const SEED_DIFFICULTIES = {
+    Tiny: { label: 'Tiny', points: 5, color: 'bg-slate-100 text-slate-700' },
     Easy: { label: 'Easy', points: 10, color: 'bg-green-100 text-green-700' },
+    Light: { label: 'Light', points: 15, color: 'bg-teal-100 text-teal-700' },
     Medium: { label: 'Medium', points: 20, color: 'bg-blue-100 text-blue-700' },
-    Hard: { label: 'Hard', points: 30, color: 'bg-orange-100 text-orange-700' },
+    Moderate: { label: 'Moderate', points: 25, color: 'bg-cyan-100 text-cyan-700' },
+    Challenging: { label: 'Challenging', points: 30, color: 'bg-orange-100 text-orange-700' },
+    Hard: { label: 'Hard', points: 40, color: 'bg-red-100 text-red-700' },
     Heroic: { label: 'Heroic', points: 50, color: 'bg-purple-100 text-purple-700' }
 };
 
