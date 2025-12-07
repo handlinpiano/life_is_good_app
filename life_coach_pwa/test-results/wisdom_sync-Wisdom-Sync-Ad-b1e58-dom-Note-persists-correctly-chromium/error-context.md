@@ -1,0 +1,78 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - button "Back" [ref=e5] [cursor=pointer]:
+    - img [ref=e6]
+    - text: Back
+  - generic [ref=e8]:
+    - heading "Your Birth Details" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Enter your birth information to generate your Vedic chart
+    - generic [ref=e12]:
+      - button "Sync to cloud" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+      - generic [ref=e19]:
+        - img [ref=e20]
+        - generic [ref=e22]: mrhandlin
+      - button "Sign out" [ref=e23] [cursor=pointer]
+    - paragraph [ref=e24]: Signed in as mrhandlin@gmail.com
+  - generic [ref=e26]:
+    - heading "Your Profile & Birth Details" [level=2] [ref=e27]
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Name
+        - textbox "Name" [ref=e31]:
+          - /placeholder: What should we call you?
+      - generic [ref=e32]:
+        - generic [ref=e33]: Profession
+        - textbox "Profession" [ref=e34]:
+          - /placeholder: e.g. Designer, Teacher
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]: Gender
+        - combobox "Gender" [ref=e38]:
+          - option "Select..." [selected]
+          - option "Female"
+          - option "Male"
+          - option "Non-binary"
+          - option "Other"
+      - generic [ref=e39]:
+        - generic [ref=e40]: Relationship Status
+        - combobox "Relationship Status" [ref=e41]:
+          - option "Select..." [selected]
+          - option "Single"
+          - option "Dating"
+          - option "Married"
+          - option "Divorced"
+          - option "Widowed"
+          - option "It's Complicated"
+      - generic [ref=e42]:
+        - generic [ref=e43]: Sexual Orientation
+        - combobox "Sexual Orientation" [ref=e44]:
+          - option "Select..." [selected]
+          - option "Heterosexual"
+          - option "Gay/Lesbian"
+          - option "Bisexual"
+          - option "Pansexual"
+          - option "Asexual"
+          - option "Prefer not to say"
+    - separator [ref=e45]
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e48]: Birth Date
+        - textbox "Birth Date" [ref=e49]
+      - generic [ref=e50]:
+        - generic [ref=e51]: Birth Time
+        - textbox "Birth Time" [ref=e52]
+    - generic [ref=e53]:
+      - generic [ref=e54]: Birth Place
+      - textbox "Search for a city..." [ref=e55]
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]: Latitude
+        - spinbutton "Latitude" [ref=e59]
+      - generic [ref=e60]:
+        - generic [ref=e61]: Longitude
+        - spinbutton "Longitude" [ref=e62]
+    - button "Calculate Birth Chart" [disabled] [ref=e63]
+```
