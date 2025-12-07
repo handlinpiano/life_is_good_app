@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, addSeed, waterSeed, deleteSeed, SEED_DIFFICULTIES } from '../utils/db';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useConvexAuth } from 'convex/react';
+import { SEED_DIFFICULTIES } from '../store';
 import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
@@ -15,6 +17,7 @@ const CATEGORY_COLORS = {
 };
 
 function PlantSeedModal({ isOpen, onClose }) {
+    const upsertSeed = useMutation(api.seeds.upsert);
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('General');
     const [description, setDescription] = useState('');
@@ -24,7 +27,15 @@ function PlantSeedModal({ isOpen, onClose }) {
         e.preventDefault();
         if (!title) return;
 
-        await addSeed(title, category, description, difficulty);
+        await upsertSeed({
+            localId: String(Date.now()),
+            title,
+            category,
+            description,
+            streak: 0,
+            completedDates: [],
+            active: true
+        });
         setTitle('');
         setDescription('');
         setDifficulty('Medium');
@@ -103,9 +114,12 @@ function PlantSeedModal({ isOpen, onClose }) {
     );
 }
 
-function SeedCard({ seed, logs }) {
+function SeedCard({ seed }) {
+    const upsertSeed = useMutation(api.seeds.upsert);
+    const removeSeed = useMutation(api.seeds.remove);
+
     const today = new Date().toISOString().split('T')[0];
-    const isWateredToday = logs?.some(log => log.date === today);
+    const isWateredToday = seed.completedDates?.includes(today);
     const [justWatered, setJustWatered] = useState(false);
 
     // Fallback if older seeds don't have difficulty
@@ -113,18 +127,28 @@ function SeedCard({ seed, logs }) {
 
     const handleWater = async () => {
         if (isWateredToday) return;
-        await waterSeed(seed.id, today);
+        const newCompletedDates = [...(seed.completedDates || []), today];
+        await upsertSeed({
+            localId: seed.localId,
+            title: seed.title,
+            category: seed.category || '',
+            description: seed.description || '',
+            streak: (seed.streak || 0) + 1,
+            lastCompleted: today,
+            completedDates: newCompletedDates,
+            active: seed.active
+        });
         setJustWatered(true);
         setTimeout(() => setJustWatered(false), 2000);
     };
 
     const handleDelete = async () => {
         if (confirm('Are you sure you want to uproot this seed?')) {
-            await deleteSeed(seed.id);
+            await removeSeed({ localId: seed.localId });
         }
     }
 
-    const streak = logs ? logs.length : 0; // Simplified streak for now
+    const streak = seed.completedDates?.length || 0;
 
     return (
         <motion.div
@@ -189,17 +213,10 @@ function SeedCard({ seed, logs }) {
 
 export default function GardenPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { isAuthenticated } = useConvexAuth();
 
-    // Live queries automatically update the UI when DB changes
-    const seeds = useLiveQuery(() => db.seeds.toArray());
-    const logs = useLiveQuery(() => db.logs.toArray());
-
-    // Group logs by seed_id for easy access
-    const logsBySeed = logs?.reduce((acc, log) => {
-        if (!acc[log.seed_id]) acc[log.seed_id] = [];
-        acc[log.seed_id].push(log);
-        return acc;
-    }, {});
+    // Use Convex query directly - auto-updates when data changes!
+    const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip") || [];
 
     // Calculate Score
     const today = new Date().toISOString().split('T')[0];
@@ -208,11 +225,11 @@ export default function GardenPage() {
     let maxPossibleScore = 0;
     let currentScore = 0;
 
-    seeds?.forEach(seed => {
+    seeds.forEach(seed => {
         const points = (SEED_DIFFICULTIES[seed.difficulty] || SEED_DIFFICULTIES.Medium).points;
         maxPossibleScore += points;
 
-        const isCompleted = logsBySeed?.[seed.id]?.some(log => log.date === today);
+        const isCompleted = seed.completedDates?.includes(today);
         if (isCompleted) {
             currentScore += points;
         }
@@ -282,11 +299,11 @@ export default function GardenPage() {
                 <section className="space-y-4">
                     <div className="flex justify-between items-center px-1">
                         <h3 className="font-bold text-stone-600 dark:text-stone-300 uppercase text-xs tracking-wider">Your Seeds</h3>
-                        <span className="text-xs text-stone-400">{seeds?.length || 0} active</span>
+                        <span className="text-xs text-stone-400">{seeds.length} active</span>
                     </div>
 
                     <div className="space-y-3 pb-24">
-                        {seeds?.length === 0 && (
+                        {seeds.length === 0 && (
                             <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-stone-300 dark:border-stone-700">
                                 <Sprout size={48} className="mx-auto text-stone-300 mb-3" />
                                 <p className="text-stone-500 font-medium">Your garden is empty.</p>
@@ -300,11 +317,10 @@ export default function GardenPage() {
                             </div>
                         )}
 
-                        {seeds?.map(seed => (
+                        {seeds.map(seed => (
                             <SeedCard
-                                key={seed.id}
+                                key={seed._id}
                                 seed={seed}
-                                logs={logsBySeed?.[seed.id]}
                             />
                         ))}
                     </div>

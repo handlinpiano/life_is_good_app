@@ -98,12 +98,21 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """Request model for follow-up chat."""
+    """Request model for follow-up chat (legacy - recalculates chart)."""
     birth_data: BirthData
     question: str = Field(..., min_length=1, description="The follow-up question")
     conversation_history: Optional[List[ChatMessage]] = Field(
         default=None,
         description="Previous messages in the conversation"
+    )
+
+
+class SimpleChatRequest(BaseModel):
+    """Simple chat - just message + history. All context is in the history."""
+    message: str = Field(..., min_length=1, description="The user's new message")
+    history: List[ChatMessage] = Field(
+        ...,
+        description="Full conversation history (system prompt with chart data is already in there)"
     )
 
 

@@ -10,60 +10,70 @@ User (Browser)
 │        Vercel (Frontend)            │
 │  life_coach_pwa/                    │
 │  - React 19 + Vite                  │
-│  - Zustand (localStorage persist)   │
-│  - Dexie (IndexedDB)                │
+│  - Clerk (Auth UI)                  │
+│  - Convex React Hooks               │
+│  - Tailwind + Framer Motion         │
 └─────────────────────────────────────┘
-     │
-     │ HTTPS API calls
-     ▼
-┌─────────────────────────────────────┐
-│        Railway (Backend)            │
-│  vedic_astrology/backend/           │
-│  - FastAPI + Uvicorn                │
-│  - PySwissEph (astronomy)           │
-│  - DeepSeek API (AI)                │
-└─────────────────────────────────────┘
+     │                    │
+     │ REST API           │ WebSocket (Realtime)
+     ▼                    ▼
+┌─────────────────┐  ┌───────────────────────┐
+│ Railway (Calc)  │  │ Convex (Data)         │
+│ vedic_astrology/│  │ - Realtime DB         │
+│ - FastAPI       │  │ - Auth via Clerk JWT  │
+│ - PySwissEph    │  │ - TypeScript Backend  │
+│ - DeepSeek AI   │  │ - Auto-sync           │
+└─────────────────┘  └───────────────────────┘
+                              │
+                              ▼
+                     ┌───────────────────────┐
+                     │ Clerk (Auth)          │
+                     │ - Hosted UI           │
+                     │ - JWT Tokens          │
+                     │ - User Management     │
+                     └───────────────────────┘
 ```
 
 ## Frontend Structure
 
 ### Pages
 
-**IntakePage.jsx** (`/`)
-- First-time user flow
-- Collects: name, gender, relationship status, profession
-- Birth data form with city search
-- Calculates chart on submit, redirects to dashboard
+**LandingPage.jsx** (`/`)
+- Public showcase
+- CTA to start decoding life map
+- "Sign in" access
+
+**AuthPage.jsx** (`/auth`)
+- Clerk's `<SignIn />` and `<SignUp />` components
+- Redirects to Dashboard on success
+
+**IntakePage.jsx** (`/birth-chart`)
+- Protected route (requires auth)
+- Birth data form with CitySearch
+- Submits to Python API for calculation upon completion
+- Saves profile to Convex
 
 **DashboardPage.jsx** (`/dashboard`)
 - Main application hub
-- Guru cards with selection state
+- Single "Chat with Guide" entry point
 - Birth chart visualization (North Indian style)
 - Daily Alignment modal (Panchang)
-- Partner synastry modal
-- Collapsible chart details
+- Collapsible chart details (Cosmic Blueprint)
+
+**ChatPage.jsx** (`/chat`)
+- Unified AI Guide interface
+- Context-aware chat (Birth chart + Dasha + Panchang injected)
+- Persists messages to Convex
 
 **GardenPage.jsx** (`/garden`)
 - Habit/seed management
-- Daily watering interface
-- Streak tracking
-- Add/delete seeds
+- Uses Convex `useQuery` and `useMutation` directly
 
-**GuruIntakePage.jsx** (`/intake/:guruId`)
-- Guru-specific onboarding
-- Dynamic questions based on guru type
-- Seeds planted based on answers
+**WisdomPage.jsx** (`/wisdom`)
+- User's saved notes and insights
+- Convex-backed persistence
 
 ### Key Components
-
-**BirthForm.jsx**
-- Date/time pickers
-- CitySearch integration
-- Validation and submission
-
-**CitySearch.jsx**
-- Uses `country-state-city` package
-- Returns lat/lng for selected city
 
 **NorthIndianChart.jsx**
 - Diamond-style Vedic chart rendering
@@ -71,119 +81,201 @@ User (Browser)
 - SVG-based visualization
 
 **DailyAlignmentModal.jsx**
-- Fetches current Panchang
-- Displays Tithi, Nakshatra, Yoga
-- Records check-in with streak
+- Fetches current Panchang from Python API
+- Records check-in with streak to Convex
 
-**GuruDailyGuidance.jsx**
-- AI-generated daily advice
-- Based on user's chart + current Panchang
+**Navbar.jsx**
+- Navigation tabs (Home, Garden, Wisdom, Chat)
+- Clerk's `<UserButton />` for account menu
 
-### State Flow
+### Data Flow: Hybrid Approach
 
+We use two patterns depending on the data type:
+
+**Pattern 1: Direct Convex (Seeds, Wisdom, Messages, Check-ins)**
 ```
-User Input → Zustand Store → API Call → Store Update → UI Re-render
-                  ↓
-            localStorage
-            (persistence)
+User Action → useMutation() → Convex DB
+                                  ↓
+                            useQuery() ← Auto-updates UI
+```
+Components call Convex hooks directly. No manual sync code needed.
 
-Seeds/Logs → Dexie (IndexedDB) → useLiveQuery → UI
+**Pattern 2: Zustand + Convex Sync (Profile, Chart, Dasha)**
+```
+Login → AuthContext loads from Convex → Zustand Store
+                                              ↓
+                                     Components read from store
+                                              ↓
+IntakePage → Zustand → syncToCloud() → Convex
+```
+
+**Why the hybrid?**
+- **Profile/Chart** is write-once (at intake), read-many. Zustand provides instant access.
+- **Chart data is large** - complex nested objects. Caching in Zustand avoids repeated queries.
+- **ChatPage** needs chart context for every AI message - Zustand is faster than a query.
+- **Seeds/Wisdom/Messages** change frequently - direct Convex ensures real-time sync.
+
+**Which pattern to use:**
+| Data Type | Pattern | Why |
+|-----------|---------|-----|
+| Seeds | Direct Convex | Frequent updates, needs real-time |
+| Wisdom | Direct Convex | Frequent updates, needs real-time |
+| Messages | Direct Convex | Frequent updates, needs real-time |
+| Check-ins | Direct Convex | Frequent updates, needs real-time |
+| Profile | Zustand + Sync | Write-once, read-many |
+| Chart | Zustand + Sync | Large data, read-many |
+| Dasha | Zustand + Sync | Large data, read-many |
+
+**Example - GardenPage:**
+```jsx
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+
+function GardenPage() {
+    // Data auto-refreshes when it changes
+    const seeds = useQuery(api.seeds.list);
+
+    // Mutation persists immediately
+    const upsertSeed = useMutation(api.seeds.upsert);
+
+    const handleWater = async (seed) => {
+        await upsertSeed({
+            localId: seed.localId,
+            title: seed.title,
+            streak: seed.streak + 1,
+            completedDates: [...seed.completedDates, today],
+            // ... other fields
+        });
+        // No setState needed - useQuery auto-updates!
+    };
+}
+```
+
+**Conditional Queries (Skip Pattern):**
+```jsx
+const { isAuthenticated } = useConvexAuth();
+// Skip query when not logged in
+const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip") || [];
 ```
 
 ## Backend Structure
 
-### main.py - API Routes
+### 1. Convex (Cloud) - The "Memory"
+*Stateful user data layer with realtime sync.*
 
-```python
-@app.post("/api/chart")      # Full chart + all vargas
-@app.post("/api/chart/basic") # Just D1
-@app.post("/api/dasha")       # Vimshottari periods
-@app.post("/api/interpret")   # AI interpretation
-@app.post("/api/chat")        # Follow-up conversation
-@app.post("/api/synastry")    # Relationship comparison
-@app.post("/api/alignment")   # Current Panchang
+**Schema (`convex/schema.ts`):**
+```typescript
+profiles: defineTable({
+  clerkId: v.string(),
+  name: v.optional(v.string()),
+  birthData: v.optional(v.object({
+    date: v.string(),
+    time: v.string(),
+    latitude: v.number(),
+    longitude: v.number(),
+  })),
+  chartData: v.optional(v.any()),
+  dashaData: v.optional(v.any()),
+}).index("by_clerk_id", ["clerkId"]),
+
+seeds: defineTable({
+  clerkId: v.string(),
+  localId: v.string(),
+  title: v.string(),
+  category: v.optional(v.string()),
+  streak: v.number(),
+  lastCompleted: v.optional(v.union(v.string(), v.null())),
+  completedDates: v.array(v.string()),
+  active: v.boolean(),
+}).index("by_clerk_id", ["clerkId"]),
 ```
 
-### calculator.py - Astronomical Calculations
+**Mutations (`convex/seeds.ts`):**
+```typescript
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
 
-Uses Swiss Ephemeris (pyswisseph) for:
-- Sidereal planetary positions
-- House cusps (Placidus)
-- Nakshatra calculations
-- Divisional chart (Varga) derivation
-- Vimshottari Dasha periods
+    return await ctx.db
+      .query("seeds")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .collect();
+  },
+});
 
-Key functions:
-```python
-calculate_chart(year, month, day, hour, minute, lat, lng)
-calculate_all_vargas(chart)
-calculate_dasha(...)
-calculate_synastry(charts, labels)
-calculate_current_alignment(...)  # Panchang
+export const upsert = mutation({
+  args: { localId: v.string(), title: v.string(), ... },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("seeds")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .filter((q) => q.eq(q.field("localId"), args.localId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+    } else {
+      await ctx.db.insert("seeds", { clerkId: identity.subject, ...args });
+    }
+  },
+});
 ```
 
-### interpreter.py - AI Integration
+### 2. Python API (Railway) - The "Brain"
+*Stateless calculation engine.*
 
-Uses DeepSeek API (OpenAI-compatible) for:
-- Structured chart interpretations
-- Conversational follow-ups
-- Synastry analysis
+**main.py**
+- `/api/chart` - Heavy astronomical calc
+- `/api/interpret` - AI generation (DeepSeek)
+- `/api/alignment` - Panchang calculations
 
-Key functions:
-```python
-interpret_chart(chart, dasha)
-interpret_chart_structured(chart, dasha)
-chat_about_chart(chart, dasha, question, history)
-interpret_synastry(synastry_data, charts, labels)
+**calculator.py**
+- High-precision planetary positions using `pyswisseph`
+- Varga charts (D1-D60)
+- Vimshottari Dasha timing
+
+**interpreter.py**
+- Composes complex prompts for DeepSeek
+- Injects astrological context into LLM calls
+
+## Authentication Flow
+
+```
+1. User clicks "Sign In"
+   ↓
+2. Clerk hosted UI handles login
+   ↓
+3. Clerk issues JWT token
+   ↓
+4. ConvexProviderWithClerk receives token
+   ↓
+5. Convex validates JWT via CLERK_ISSUER_URL
+   ↓
+6. ctx.auth.getUserIdentity() returns user info
+   ↓
+7. Queries/mutations filter by identity.subject (Clerk user ID)
 ```
 
-### models.py - Pydantic Schemas
-
-Request models:
-- `BirthData` - Birth information
-- `ChatRequest` - Follow-up question
-- `SynastryRequest` - Multiple people for comparison
-- `AlignmentRequest` - Current date/location
-
-Response models:
-- `ChartResponse` - Full chart with vargas
-- `PlanetPosition` - Individual planet data
-- `NakshatraInfo` - Nakshatra details
-
-## Data Persistence Strategy
-
-### What's Stored Where
-
-| Data | Storage | Why |
-|------|---------|-----|
-| User profile | Zustand → localStorage | Quick access, survives refresh |
-| Birth chart | Zustand → localStorage | Expensive to recalculate |
-| Guru selections | Zustand → localStorage | User preferences |
-| Seeds (habits) | Dexie → IndexedDB | Structured, queryable |
-| Daily logs | Dexie → IndexedDB | Growing dataset |
-| Check-ins | Dexie → IndexedDB | Streak calculations |
-| Messages | Dexie → IndexedDB | Guru conversation history |
-
-### Why Two Storage Systems?
-
-- **Zustand/localStorage**: Simple key-value, good for app state
-- **Dexie/IndexedDB**: Structured queries, handles larger datasets
+**App.jsx Setup:**
+```jsx
+<ClerkProvider publishableKey={CLERK_KEY}>
+  <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  </ConvexProviderWithClerk>
+</ClerkProvider>
+```
 
 ## Astrological Calculations
 
 ### Lahiri Ayanamsa
 The app uses Lahiri ayanamsa (most common in India) to convert tropical to sidereal positions.
-
-### Nakshatra System
-27 nakshatras, each 13°20' of the zodiac:
-- Pada (quarter) = 3°20'
-- Each nakshatra has a ruling planet (for Dasha)
-
-### Vimshottari Dasha
-120-year cycle based on Moon's nakshatra at birth:
-- Maha Dasha (major period): 6-20 years each
-- Antar Dasha (sub-period): months to years
-- Pratyantar Dasha (sub-sub): weeks to months
 
 ### Divisional Charts (Vargas)
 - D1: Main chart (Rashi)
@@ -194,25 +286,23 @@ The app uses Lahiri ayanamsa (most common in India) to convert tropical to sider
 ## CORS Configuration
 
 Backend allows:
-```python
-allow_origins=[
-    "http://localhost:5173",     # Vite dev
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "https://www.vedicas.com",   # Production
-    "https://vedicas.com",
-    "https://lifecoach-*.vercel.app",  # Vercel previews
-]
-```
+- `http://localhost:5173` (Local Dev)
+- `https://www.vedicas.com` (Production)
+- `https://lifecoach-*.vercel.app` (Vercel Previews)
 
 ## Error Handling
 
 ### Frontend
-- API errors caught in store actions
-- `error` state displayed in UI
-- Loading states prevent double-submission
+- **Auth Errors**: Clerk handles most auth UI/errors
+- **Convex Errors**: Mutations throw, catch in components
+- **Calc Errors**: Python API failures handled in `utils/api.js`
 
-### Backend
+### Backend (Python)
 - Pydantic validation on all inputs
 - HTTPException for known errors
 - Generic 500 for unexpected failures
+
+### Backend (Convex)
+- TypeScript validation via `v.` validators
+- `ctx.auth.getUserIdentity()` returns null if not authed
+- Throw errors for unauthorized access

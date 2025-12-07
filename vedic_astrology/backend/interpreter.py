@@ -285,6 +285,41 @@ The chart data is provided below for reference."""
         }
 
 
+def simple_chat(message: str, history: list) -> dict:
+    """
+    Simple chat - all context is already in the history.
+
+    No chart calculation needed. The system prompt with chart data
+    is already the first message in history.
+    """
+    # Build messages from history + new message
+    messages = history.copy()
+    messages.append({"role": "user", "content": message})
+
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-reasoner",
+            messages=messages,
+            max_tokens=4096
+        )
+
+        assistant_message = response.choices[0].message
+        response_text = assistant_message.content
+
+        return {
+            "success": True,
+            "response": response_text,
+            "reasoning": getattr(assistant_message, 'reasoning_content', None)
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "response": None
+        }
+
+
 def interpret_chart_structured(chart: dict, dasha: dict = None) -> dict:
     """
     Get structured interpretation with specific sections.

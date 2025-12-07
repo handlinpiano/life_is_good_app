@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, addWisdom, deleteWisdom, WISDOM_CATEGORIES } from '../utils/db';
+import { useQuery, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { WISDOM_CATEGORIES } from '../store';
 import { BookOpen, Plus, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,6 +27,7 @@ const GURU_NAMES = {
 };
 
 function AddWisdomModal({ isOpen, onClose }) {
+    const upsertWisdom = useMutation(api.wisdom.upsert);
     const [title, setTitle] = useState('');
     const [category, setCategory] = useState('General');
     const [content, setContent] = useState('');
@@ -33,7 +36,12 @@ function AddWisdomModal({ isOpen, onClose }) {
         e.preventDefault();
         if (!title || !content) return;
 
-        await addWisdom(title, category, content);
+        await upsertWisdom({
+            localId: String(Date.now()),
+            title,
+            category,
+            content,
+        });
         setTitle('');
         setContent('');
         setCategory('General');
@@ -97,16 +105,17 @@ function AddWisdomModal({ isOpen, onClose }) {
 }
 
 function WisdomCard({ wisdom }) {
+    const removeWisdom = useMutation(api.wisdom.remove);
     const [isExpanded, setIsExpanded] = useState(false);
 
     const handleDelete = async () => {
         if (confirm('Are you sure you want to delete this wisdom note?')) {
-            await deleteWisdom(wisdom.id);
+            await removeWisdom({ localId: wisdom.localId });
         }
     };
 
-    const guruName = wisdom.guru_id ? GURU_NAMES[wisdom.guru_id] : null;
-    const createdDate = wisdom.created_at ? new Date(wisdom.created_at).toLocaleDateString() : '';
+    const guruName = wisdom.guruId ? GURU_NAMES[wisdom.guruId] : null;
+    const createdDate = wisdom._creationTime ? new Date(wisdom._creationTime).toLocaleDateString() : '';
 
     return (
         <motion.div
@@ -177,15 +186,21 @@ export default function WisdomPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState('All');
+    const { isAuthenticated } = useConvexAuth();
 
-    // Live query automatically updates UI when DB changes
-    const wisdom = useLiveQuery(() => db.wisdom.orderBy('created_at').reverse().toArray());
+    // Use Convex query directly
+    const wisdom = useQuery(api.wisdom.list, isAuthenticated ? {} : "skip") || [];
+
+    // Sort by _creationTime descending
+    const sortedWisdom = [...wisdom].sort((a, b) =>
+        (b._creationTime || 0) - (a._creationTime || 0)
+    );
 
     // Filter wisdom based on search and category
-    const filteredWisdom = wisdom?.filter(w => {
+    const filteredWisdom = sortedWisdom.filter(w => {
         const matchesSearch = searchQuery === '' ||
-            w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            w.content.toLowerCase().includes(searchQuery.toLowerCase());
+            w.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            w.content?.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory = filterCategory === 'All' || w.category === filterCategory;
         return matchesSearch && matchesCategory;
     });
@@ -201,7 +216,7 @@ export default function WisdomPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-stone-800 dark:text-stone-100">Wisdom Library</h1>
-                            <p className="text-stone-500 dark:text-stone-400">Insights, recipes, and notes from your Gurus.</p>
+                            <p className="text-stone-500 dark:text-stone-400">Insights, recipes, and notes from your Guide.</p>
                         </div>
                     </div>
                 </header>
@@ -235,16 +250,16 @@ export default function WisdomPage() {
                 {/* Wisdom Count */}
                 <div className="flex justify-between items-center px-1">
                     <h3 className="font-bold text-stone-600 dark:text-stone-300 uppercase text-xs tracking-wider">Your Wisdom</h3>
-                    <span className="text-xs text-stone-400">{filteredWisdom?.length || 0} notes</span>
+                    <span className="text-xs text-stone-400">{filteredWisdom.length} notes</span>
                 </div>
 
                 {/* Wisdom Cards */}
                 <div className="space-y-3 pb-24">
-                    {filteredWisdom?.length === 0 && (
+                    {filteredWisdom.length === 0 && (
                         <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-stone-300 dark:border-stone-700">
                             <BookOpen size={48} className="mx-auto text-stone-300 mb-3" />
                             <p className="text-stone-500 font-medium">No wisdom notes yet.</p>
-                            <p className="text-stone-400 text-sm mb-4">Ask your Gurus to save recipes, insights, or mantras.</p>
+                            <p className="text-stone-400 text-sm mb-4">Ask your Guide to save recipes, insights, or mantras.</p>
                             <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="text-violet-600 font-bold text-sm hover:underline"
@@ -254,8 +269,8 @@ export default function WisdomPage() {
                         </div>
                     )}
 
-                    {filteredWisdom?.map(w => (
-                        <WisdomCard key={w.id} wisdom={w} />
+                    {filteredWisdom.map(w => (
+                        <WisdomCard key={w._id} wisdom={w} />
                     ))}
                 </div>
             </main>

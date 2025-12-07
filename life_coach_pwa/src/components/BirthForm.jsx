@@ -133,6 +133,7 @@ export default function BirthForm({ onSubmit, loading }) {
       minute,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
+      birthPlace: cityName || '', // Include the selected city name
     })
   }
 

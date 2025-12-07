@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { X, Sun, Moon, Sparkles, Loader2, Sprout, RefreshCw, Flame, Calendar, ChevronLeft } from 'lucide-react';
-import { getAlignment, chatWithChart } from '../utils/api';
-import { db, recordCheckin, calculateStreak } from '../utils/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { getAlignment, chat } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
 
 const GURU_CONFIG = {
@@ -53,9 +51,12 @@ const GURU_CONFIG = {
 
 export default function DailyAlignmentModal({ isOpen, onClose }) {
     const user = useStore(state => state.user);
+    const seeds = useStore(state => state.seeds);
+    const logs = useStore(state => state.logs);
+    const checkins = useStore(state => state.checkins);
+    const recordCheckin = useStore(state => state.recordCheckin);
+    const calculateStreak = useStore(state => state.calculateStreak);
     const birthData = user.birthData;
-    const selectedGurus = useStore(state => state.selectedGurus);
-    const completedIntakes = useStore(state => state.completedIntakes);
 
     const [alignment, setAlignment] = useState(null);
     const [guruGuidance, setGuruGuidance] = useState({});
@@ -64,32 +65,27 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
     const [streak, setStreak] = useState({ current: 0, longest: 0, total: 0 });
     const [showHistory, setShowHistory] = useState(false);
 
-    // Get user's seeds
-    const seeds = useLiveQuery(() => db.seeds.toArray(), []);
     const today = new Date().toISOString().split('T')[0];
-    const todayLogs = useLiveQuery(() => db.logs.where('date').equals(today).toArray(), [today]);
+    const todayLogs = logs.filter(l => l.date === today);
 
-    // Get check-in history
-    const checkins = useLiveQuery(() => db.checkins.orderBy('date').reverse().limit(30).toArray(), []);
+    // Get check-in history (last 30)
+    const sortedCheckins = [...checkins]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 30);
 
-    // Get gurus that have completed intake
-    const activeGurus = selectedGurus.filter(id => completedIntakes.includes(id));
+    // All gurus are always available now (no intake flow)
+    const activeGurus = Object.keys(GURU_CONFIG);
 
     useEffect(() => {
         if (isOpen && birthData) {
             loadAlignment();
-            loadStreak();
+            setStreak(calculateStreak());
         }
         if (isOpen) {
             setShowHistory(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
-
-    const loadStreak = async () => {
-        const streakData = await calculateStreak();
-        setStreak(streakData);
-    };
 
     const loadAlignment = async () => {
         setLoading(true);
@@ -99,9 +95,9 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
             setAlignment(data);
 
             // Record check-in for streak tracking
-            const seedsWatered = todayLogs?.length || 0;
-            const seedsTotal = seeds?.length || 0;
-            await recordCheckin(today, {
+            const seedsWatered = todayLogs.length;
+            const seedsTotal = seeds.length;
+            recordCheckin(today, {
                 tithi: data.tithi.name,
                 nakshatra: data.moon_nakshatra.name,
                 yoga: data.yoga.name,
@@ -109,7 +105,7 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
             }, seedsWatered, seedsTotal);
 
             // Refresh streak after recording
-            await loadStreak();
+            setStreak(calculateStreak());
 
             // Load guidance for all active gurus in parallel
             if (activeGurus.length > 0) {
@@ -141,21 +137,22 @@ export default function DailyAlignmentModal({ isOpen, onClose }) {
 
         try {
             // Get seeds for this guru's domain
-            const guruSeeds = seeds?.filter(s => guru.seedCategories.includes(s.category)) || [];
+            const guruSeeds = seeds.filter(s => guru.seedCategories.includes(s.category));
             const seedList = guruSeeds.map(s => {
-                const watered = todayLogs?.some(log => log.seed_id === s.id);
+                const watered = todayLogs.some(log => log.seed_id === s.id);
                 return `${s.title}${watered ? ' [DONE]' : ''}`;
             }).join(', ') || 'none yet';
 
-            const prompt = `You are ${guru.name}. Give a BRIEF 2-3 sentence daily tip for today focusing on ${guru.focus}.
+            const systemPrompt = `You are ${guru.name}, a Vedic wisdom guide. Give a BRIEF 2-3 sentence daily tip focusing on ${guru.focus}. Be specific to today's cosmic energy. One actionable insight only. No greetings or sign-offs.`;
 
-Today's Energy: ${alignData.tithi.name} (${alignData.tithi.paksha}), Moon in ${alignData.moon_nakshatra.name}, ${alignData.vara.name} (ruled by ${alignData.vara.lord}).
+            const userMessage = `Today's Energy: ${alignData.tithi.name} (${alignData.tithi.paksha}), Moon in ${alignData.moon_nakshatra.name}, ${alignData.vara.name} (ruled by ${alignData.vara.lord}).
 
-My seeds in your domain: ${seedList}
+My seeds in your domain: ${seedList}`;
 
-Be specific to TODAY's energy. One actionable insight only. No greetings or sign-offs.`;
-
-            const response = await chatWithChart(birthData, prompt, []);
+            const response = await chat(userMessage, [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+            ]);
             if (response.success) {
                 setGuruGuidance(prev => ({ ...prev, [guruId]: response.response }));
             }
@@ -237,8 +234,8 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
 
                             {/* Past Check-ins */}
                             <div className="space-y-2">
-                                {checkins && checkins.length > 0 ? (
-                                    checkins.map((checkin) => {
+                                {sortedCheckins.length > 0 ? (
+                                    sortedCheckins.map((checkin) => {
                                         const dateObj = new Date(checkin.date + 'T12:00:00');
                                         const isToday = checkin.date === today;
                                         return (
@@ -368,11 +365,7 @@ Be specific to TODAY's energy. One actionable insight only. No greetings or sign
                                         );
                                     })}
                                 </div>
-                            ) : (
-                                <div className="text-center py-6 text-stone-400 text-sm">
-                                    <p>Complete intake with your guides to receive daily wisdom.</p>
-                                </div>
-                            )}
+                            ) : null}
 
                             {/* Ekadashi Notice */}
                             {alignment.tithi.special === 'Ekadashi' && (

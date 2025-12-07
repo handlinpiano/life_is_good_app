@@ -1,59 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useStore } from '../store';
-import { chatWithChart, getAlignment } from '../utils/api';
-import { db, addSeed, addWisdom } from '../utils/db';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useStore, SEED_CATEGORIES, WISDOM_CATEGORIES } from '../store';
+import { chat, formatChartAsText } from '../utils/api';
 import { Send, User, Sparkles, ArrowLeft, Sprout, Check, RotateCcw, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
-
-const GURU_PERSONAS = {
-    'health_ayurveda': {
-        name: 'Vaidya Jiva',
-        role: 'Ayurvedic Healer',
-        topics: 'diet, sleep patterns, daily routines, digestive health, and dosha balance',
-        icon: '🌿',
-        color: 'bg-green-600'
-    },
-    'health_yoga': {
-        name: 'Yogini Shakti',
-        role: 'Movement Guide',
-        topics: 'physical activity, flexibility, breathwork, energy levels, and body awareness',
-        icon: '🧘',
-        color: 'bg-emerald-600'
-    },
-    'spiritual_sadhana': {
-        name: 'Swami Prana',
-        role: 'Sadhana Mentor',
-        topics: 'meditation practice, spiritual routines, mantra work, and inner stillness',
-        icon: '🕉️',
-        color: 'bg-indigo-600'
-    },
-    'spiritual_wisdom': {
-        name: 'Acharya Satya',
-        role: 'Wisdom Keeper',
-        topics: 'philosophical questions, scriptural guidance, life meaning, and dharmic path',
-        icon: '📿',
-        color: 'bg-violet-600'
-    },
-    'life_romance': {
-        name: 'Devi Kama',
-        role: 'Relationship Guide',
-        topics: 'relationship status, past patterns, what you seek in a partner, and emotional needs',
-        icon: '❤️',
-        color: 'bg-rose-600'
-    },
-    'life_career': {
-        name: 'Raja Dharma',
-        role: 'Career Strategist',
-        topics: 'career satisfaction, professional goals, skills, and work-life balance',
-        icon: '👑',
-        color: 'bg-blue-600'
-    }
-};
 
 // Component to display a Seed Offer inside the chat
 function SeedOfferCard({ offer, onAccept, accepted }) {
@@ -66,7 +22,7 @@ function SeedOfferCard({ offer, onAccept, accepted }) {
                     <Sprout size={20} />
                 </div>
                 <div className="flex-1">
-                    <h4 className="font-bold text-stone-800 dark:text-stone-100 text-sm">Guruji offers a Seed</h4>
+                    <h4 className="font-bold text-stone-800 dark:text-stone-100 text-sm">Practice Suggestion</h4>
                     <p className="text-stone-700 dark:text-stone-300 font-medium text-lg my-1">{offer.title}</p>
                     <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">{offer.description}</p>
 
@@ -104,7 +60,7 @@ function WisdomOfferCard({ offer, onAccept, accepted }) {
                     <BookOpen size={20} />
                 </div>
                 <div className="flex-1">
-                    <h4 className="font-bold text-stone-800 dark:text-stone-100 text-sm">Guruji shares Wisdom</h4>
+                    <h4 className="font-bold text-stone-800 dark:text-stone-100 text-sm">Wisdom Note</h4>
                     <p className="text-stone-700 dark:text-stone-300 font-medium text-lg my-1">{offer.title}</p>
                     <div className="text-sm text-stone-600 dark:text-stone-400 mb-3 whitespace-pre-wrap bg-white dark:bg-slate-800 p-3 rounded-lg border border-stone-100 dark:border-stone-700">
                         {offer.content}
@@ -132,12 +88,26 @@ function WisdomOfferCard({ offer, onAccept, accepted }) {
     );
 }
 
-export default function GuruChatPage() {
-    const { guruId } = useParams();
+export default function ChatPage() {
+    // Get user profile data from Zustand (for chart context)
     const user = useStore(state => state.user);
-    const birthData = user.birthData;
+    const chart = useStore(state => state.chart);
+    const dasha = useStore(state => state.dasha);
 
+    const { isAuthenticated } = useConvexAuth();
     const navigate = useNavigate();
+
+    // Convex queries and mutations
+    const messages = useQuery(api.messages.list, isAuthenticated ? {} : "skip") || [];
+    const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip") || [];
+    const wisdom = useQuery(api.wisdom.list, isAuthenticated ? {} : "skip") || [];
+    const checkins = useQuery(api.checkins.list, isAuthenticated ? {} : "skip") || [];
+
+    const addMessage = useMutation(api.messages.add);
+    const clearMessages = useMutation(api.messages.clear);
+    const upsertSeed = useMutation(api.seeds.upsert);
+    const upsertWisdom = useMutation(api.wisdom.upsert);
+
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [acceptedSeeds, setAcceptedSeeds] = useState(new Set());
@@ -145,34 +115,22 @@ export default function GuruChatPage() {
     const [showRestartConfirm, setShowRestartConfirm] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Load existing seeds and wisdom to check which offers have been accepted and for context
-    const existingSeeds = useLiveQuery(() => db.seeds.toArray(), []);
-    const existingWisdom = useLiveQuery(() => db.wisdom.toArray(), []);
+    const today = new Date().toISOString().split('T')[0];
+    const latestCheckin = checkins.length > 0
+        ? checkins.reduce((latest, c) => c.date > latest.date ? c : latest, checkins[0])
+        : null;
 
-    // Helper to check if a seed title has been planted
+    // Sort messages by timestamp
+    const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+
     const isSeedPlanted = (title) => {
         if (acceptedSeeds.has(title)) return true;
-        return existingSeeds?.some(seed => seed.title === title) || false;
+        return seeds.some(seed => seed.title === title);
     };
 
-    // Helper to check if a wisdom note has been saved
     const isWisdomSaved = (title) => {
         if (acceptedWisdom.has(title)) return true;
-        return existingWisdom?.some(w => w.title === title) || false;
-    };
-
-    // Load conversation history from Dexie
-    const history = useLiveQuery(
-        () => db.messages.where('guru_id').equals(guruId).toArray(),
-        [guruId]
-    );
-
-    const guru = GURU_PERSONAS[guruId] || {
-        name: 'Vedic Guide',
-        role: 'Life Coach',
-        topics: 'your general life goals and happiness',
-        icon: '✨',
-        color: 'bg-amber-600'
+        return wisdom.some(w => w.title === title);
     };
 
     const scrollToBottom = () => {
@@ -181,23 +139,55 @@ export default function GuruChatPage() {
 
     useEffect(() => {
         scrollToBottom();
-    }, [history, loading]);
+    }, [sortedMessages, loading]);
 
-    // Helper to generate the System Prompt with current seed context
-    const getSystemPrompt = (includeSeeds = true) => {
-        // Build seed context
+    // Build system prompt fresh each time (not stored)
+    const buildSystemPrompt = () => {
+        const chartText = formatChartAsText(chart, dasha);
+
+        // Seeds with today's completion status
         let seedContext = '';
-        if (includeSeeds && existingSeeds && existingSeeds.length > 0) {
-            const seedList = existingSeeds.map(s => `- ${s.title} (${s.category}, ${s.difficulty})`).join('\n');
+        if (seeds.length > 0) {
+            const seedList = seeds.map(s => {
+                const wateredToday = s.completedDates?.includes(today);
+                return `- ${s.title} (${s.category}) ${wateredToday ? '✓ done today' : '○ not yet today'}`;
+            }).join('\n');
             seedContext = `
 
-CURRENT SEEDS IN GARDEN (practices I'm working on):
+MY GARDEN (daily practices I'm cultivating):
 ${seedList}
 
-You should be aware of these existing practices and can reference them in your guidance. Don't offer seeds I already have.`;
+Encourage me on practices not yet done today. Don't suggest seeds I already have.`;
         }
 
-        return `You are ${guru.name}, a ${guru.role}. This is your ONLY identity - never use any other name.
+        // Wisdom notes summary
+        let wisdomContext = '';
+        if (wisdom.length > 0) {
+            const wisdomList = wisdom.slice(0, 10).map(w => `- ${w.title} (${w.category})`).join('\n');
+            wisdomContext = `
+
+MY SAVED WISDOM (${wisdom.length} notes):
+${wisdomList}${wisdom.length > 10 ? '\n... and more' : ''}
+
+Don't re-offer wisdom I've already saved.`;
+        }
+
+        // Today's cosmic energy (if we have a recent check-in)
+        let panchangContext = '';
+        if (latestCheckin?.panchang && latestCheckin.date === today) {
+            const p = latestCheckin.panchang;
+            panchangContext = `
+
+TODAY'S COSMIC ENERGY:
+- Tithi: ${p.tithi || 'Unknown'}
+- Nakshatra: ${p.nakshatra || 'Unknown'}
+- Day Lord: ${p.day_lord || 'Unknown'}
+- Yoga: ${p.yoga || 'Unknown'}
+
+Reference today's energy when relevant to my questions.`;
+        }
+
+        return `You are a wise Vedic life guide - an omniscient spiritual mentor who integrates ancient wisdom with practical modern guidance.
 
 I am ${user.name || 'a seeker'}.
 
@@ -205,171 +195,99 @@ My profile:
 - Gender: ${user.gender || 'Not specified'}
 - Profession: ${user.profession || 'Not specified'}
 - Relationship Status: ${user.relationshipStatus || 'Not specified'}
-- Sexual Orientation: ${user.sexualOrientation || 'Not specified'}
 
-You are my trusted guide for ${guru.topics}. We have an ongoing relationship - continue our conversation naturally. If this is our first meeting, warmly introduce yourself and ask how you can help today. Otherwise, pick up where we left off.
+${chartText}${panchangContext}${seedContext}${wisdomContext}
 
-My birth chart details are available to you. Use this astrological context to personalize your guidance.${seedContext}
+Use this astrological context to personalize ALL your guidance - for health, relationships, career, spirituality, or any topic I ask about.
 
 IMPORTANT CAPABILITIES:
 
-1. SEEDS (daily practices): When you identify a helpful daily practice, offer it as a seed:
-Format: [OFFER_SEED: {"title": "Practice Name", "category": "Health|Spiritual|Relationship|Career|General", "description": "Why this helps", "difficulty": "Easy|Medium|Hard|Heroic"}]
+1. SEEDS (daily practices): When you identify a helpful daily practice, offer it:
+[OFFER_SEED: {"title": "Practice Name", "category": "Health|Spiritual|Relationship|Career|General", "description": "Why this helps", "difficulty": "Easy|Medium|Hard|Heroic"}]
 
-2. WISDOM NOTES (recipes, mantras, insights): When I ask you to save something as a "note", "wisdom", or "wisdom note" (like a recipe, mantra, insight, or important information), format it as:
-[WISDOM_NOTE: {"title": "Note Title", "category": "Recipe|Practice|Insight|Mantra|Reminder|General", "content": "The full formatted content to save"}]
+2. WISDOM NOTES: When I ask you to save something (recipe, mantra, insight):
+[WISDOM_NOTE: {"title": "Note Title", "category": "Recipe|Practice|Insight|Mantra|Reminder|General", "content": "The full content to save"}]
 
-Always use these special formats when offering seeds or when I ask you to save something to my wisdom.`;
+Be warm, wise, and practical. Connect insights across all areas of life.`;
     };
-
-    // Start conversation if no history exists
-    useEffect(() => {
-        const startChat = async () => {
-            if (!birthData) {
-                navigate('/');
-                return;
-            }
-
-            // Only start if history is empty, seeds are loaded, and we are ready
-            if (history !== undefined && history.length === 0 && existingSeeds !== undefined && !loading) {
-                setLoading(true);
-                try {
-                    const systemPrompt = getSystemPrompt();
-                    const response = await chatWithChart(birthData, systemPrompt, []);
-
-                    if (response.success) {
-                        await db.messages.add({
-                            guru_id: guruId,
-                            role: 'assistant',
-                            content: response.response,
-                            timestamp: new Date()
-                        });
-                    }
-                } catch (err) {
-                    console.error("Failed to start chat", err);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        startChat();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guruId, birthData, navigate, history, existingSeeds]);
 
     const handleSend = async (e) => {
         e.preventDefault();
         if (!input.trim() || loading) return;
 
-        const userMsg = {
-            guru_id: guruId,
-            role: 'user',
-            content: input,
-            timestamp: new Date()
-        };
+        const userMessage = input.trim();
+        const messageId = String(Date.now());
 
-        await db.messages.add(userMsg);
+        // Add user message to Convex
+        await addMessage({
+            localId: messageId,
+            role: 'user',
+            content: userMessage,
+            timestamp: Date.now()
+        });
+
         setInput('');
         setLoading(true);
 
         try {
-            // Prepare history for API
-            // CRITICAL FIX: We must re-inject the System Prompt as the FIRST message
-            // Otherwise the AI forgets who it is (Persona) and its instructions (Seeds)
-            let recentHistory = (history || []).map(m => ({
-                role: m.role,
-                content: m.content
-            }));
+            // Build system prompt fresh (always current)
+            const systemPrompt = buildSystemPrompt();
 
-            // Prepend System Persona & Instructions
-            recentHistory.unshift({
-                role: 'system',
-                content: getSystemPrompt()
-            });
+            // Get conversation history (just user/assistant messages)
+            const apiHistory = [
+                { role: 'system', content: systemPrompt },
+                ...sortedMessages.map(m => ({ role: m.role, content: m.content })),
+                { role: 'user', content: userMessage }
+            ];
 
-            // --- CONTEXT INJECTION ---
-            try {
-                // 1. Get Astrological Data (using birth location as proxy for current)
-                const alignData = await getAlignment(birthData.latitude, birthData.longitude);
-                if (alignData && alignData.tithi) {
-                    const tithiNum = alignData.tithi.number;
-                    // Calculate days to next Ekadashi (11 or 26)
-                    let nextEkadashiDays = 0;
-                    let nextEkadashiType = "";
-
-                    if (tithiNum < 11) {
-                        nextEkadashiDays = 11 - tithiNum;
-                        nextEkadashiType = "Shukla Ekadashi";
-                    } else if (tithiNum === 11) {
-                        nextEkadashiDays = 0;
-                        nextEkadashiType = "Today is Shukla Ekadashi!";
-                    } else if (tithiNum < 26) {
-                        nextEkadashiDays = 26 - tithiNum;
-                        nextEkadashiType = "Krishna Ekadashi";
-                    } else if (tithiNum === 26) {
-                        nextEkadashiDays = 0;
-                        nextEkadashiType = "Today is Krishna Ekadashi!";
-                    } else {
-                        // > 26, next is 11 (next month) => (30-tithi) + 11
-                        nextEkadashiDays = (30 - tithiNum) + 11;
-                        nextEkadashiType = "Shukla Ekadashi (Next Cycle)";
-                    }
-
-                    const astroContext = `
-[SYSTEM_CONTEXT_UPDATE]
-Current Time: ${new Date().toLocaleString()}
-Astrological Day (Tithi): ${alignData.tithi.name} (${alignData.tithi.paksha})
-Moon Nakshatra: ${alignData.moon_nakshatra.name}
-Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiType} is in ${nextEkadashiDays} days.`}
-[/SYSTEM_CONTEXT_UPDATE]
-`;
-                    // Push as a system message at the END of history so it's fresh context
-                    recentHistory.push({ role: 'system', content: astroContext });
-                }
-            } catch (e) {
-                console.error("Failed to inject astro context", e);
-            }
-
-            const response = await chatWithChart(birthData, input, recentHistory); // Note: API takes (data, question, history)
+            const response = await chat(userMessage, apiHistory);
 
             if (response.success) {
-                await db.messages.add({
-                    guru_id: guruId,
+                // Add assistant message to Convex
+                await addMessage({
+                    localId: String(Date.now()),
                     role: 'assistant',
                     content: response.response,
-                    timestamp: new Date()
+                    timestamp: Date.now()
                 });
             }
         } catch (err) {
-            console.error(err);
-            // Optional: add error message to local state only
+            console.error('Chat error:', err);
         } finally {
             setLoading(false);
         }
     };
 
     const handleAcceptSeed = async (offer) => {
-        await addSeed(offer.title, offer.category, offer.description, offer.difficulty, guruId);
-        // Add to local state immediately for instant UI feedback
+        await upsertSeed({
+            localId: String(Date.now()),
+            title: offer.title,
+            category: offer.category || 'General',
+            description: offer.description || '',
+            streak: 0,
+            completedDates: [],
+            active: true
+        });
         setAcceptedSeeds(prev => new Set([...prev, offer.title]));
     };
 
     const handleAcceptWisdom = async (offer) => {
-        await addWisdom(offer.title, offer.category, offer.content, guruId);
-        // Add to local state immediately for instant UI feedback
+        await upsertWisdom({
+            localId: String(Date.now()),
+            title: offer.title,
+            category: offer.category || 'General',
+            content: offer.content
+        });
         setAcceptedWisdom(prev => new Set([...prev, offer.title]));
     };
 
     const handleRestartConversation = async () => {
-        // Delete all messages for this guru
-        await db.messages.where('guru_id').equals(guruId).delete();
+        await clearMessages();
         setShowRestartConfirm(false);
-        // The useLiveQuery will automatically update and trigger a new intake
     };
 
     // Helper to render content with potential seed and wisdom offers
     const renderMessageContent = (content) => {
-        // Regex to find ALL [OFFER_SEED: { ... }] and [WISDOM_NOTE: { ... }] occurrences
         const seedRegex = /\[OFFER_SEED:\s*({.*?})\]/gs;
         const wisdomRegex = /\[WISDOM_NOTE:\s*({.*?})\]/gs;
 
@@ -377,27 +295,14 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
         const wisdomMatches = [...content.matchAll(wisdomRegex)];
 
         if (seedMatches.length > 0 || wisdomMatches.length > 0) {
-            // Remove all tags from content to get clean text
             let cleanContent = content.replace(seedRegex, '').replace(wisdomRegex, '').trim();
 
-            // Parse seed offers
             const seedOffers = seedMatches.map(match => {
-                try {
-                    return JSON.parse(match[1]);
-                } catch (e) {
-                    console.error("Failed to parse seed offer", e);
-                    return null;
-                }
+                try { return JSON.parse(match[1]); } catch { return null; }
             }).filter(Boolean);
 
-            // Parse wisdom offers
             const wisdomOffers = wisdomMatches.map(match => {
-                try {
-                    return JSON.parse(match[1]);
-                } catch (e) {
-                    console.error("Failed to parse wisdom offer", e);
-                    return null;
-                }
+                try { return JSON.parse(match[1]); } catch { return null; }
             }).filter(Boolean);
 
             return (
@@ -407,7 +312,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                         <SeedOfferCard
                             key={`seed-${offerData.title}-${index}`}
                             offer={offerData}
-                            onAccept={(offer) => handleAcceptSeed(offer)}
+                            onAccept={handleAcceptSeed}
                             accepted={isSeedPlanted(offerData.title)}
                         />
                     ))}
@@ -415,7 +320,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                         <WisdomOfferCard
                             key={`wisdom-${offerData.title}-${index}`}
                             offer={offerData}
-                            onAccept={(offer) => handleAcceptWisdom(offer)}
+                            onAccept={handleAcceptWisdom}
                             accepted={isWisdomSaved(offerData.title)}
                         />
                     ))}
@@ -431,7 +336,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
             <Navbar />
 
             {/* Header */}
-            <header className={clsx("p-4 text-white shadow-md flex items-center justify-between shrink-0", guru.color)}>
+            <header className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white shadow-md flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate('/dashboard')}
@@ -439,18 +344,18 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <span className="text-3xl">{guru.icon}</span>
+                    <span className="text-3xl">🙏</span>
                     <div>
-                        <h1 className="font-bold text-lg">{guru.name}</h1>
-                        <p className="text-xs opacity-90 uppercase tracking-wider">{guru.role}</p>
+                        <h1 className="font-bold text-lg">Vedic Guide</h1>
+                        <p className="text-xs opacity-90 uppercase tracking-wider">Your Spiritual Companion</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {history?.length > 0 && (
+                    {sortedMessages.length > 0 && (
                         <button
                             onClick={() => setShowRestartConfirm(true)}
                             className="flex items-center gap-1 text-sm font-medium hover:bg-white/20 px-2 py-1.5 rounded-full transition-colors opacity-70 hover:opacity-100"
-                            title="Restart conversation"
+                            title="Start new conversation"
                         >
                             <RotateCcw size={16} />
                         </button>
@@ -460,9 +365,19 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
 
             {/* Chat Area */}
             <main className="flex-1 overflow-y-auto p-4 space-y-4">
-                {history?.map((msg) => (
+                {/* Welcome message if no history */}
+                {sortedMessages.length === 0 && !loading && (
+                    <div className="text-center py-12 text-stone-500 dark:text-stone-400">
+                        <span className="text-6xl mb-4 block">🙏</span>
+                        <p className="text-lg font-medium mb-2">Namaste, {user.name || 'Seeker'}</p>
+                        <p className="text-sm">Ask me anything about health, relationships, career, or spirituality.</p>
+                        <p className="text-sm mt-1">I'll guide you using your unique cosmic blueprint.</p>
+                    </div>
+                )}
+
+                {sortedMessages.map((msg) => (
                     <motion.div
-                        key={msg.id}
+                        key={msg._id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={clsx(
@@ -472,7 +387,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                     >
                         <div className={clsx(
                             "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm",
-                            msg.role === 'user' ? "bg-stone-200 text-stone-600" : `${guru.color} text-white`
+                            msg.role === 'user' ? "bg-stone-200 text-stone-600" : "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
                         )}>
                             {msg.role === 'user' ? <User size={16} /> : <Sparkles size={16} />}
                         </div>
@@ -494,7 +409,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                         animate={{ opacity: 1 }}
                         className="flex gap-3 mr-auto"
                     >
-                        <div className={clsx("w-8 h-8 rounded-full flex items-center justify-center shrink-0", guru.color, "text-white")}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
                             <Sparkles size={16} />
                         </div>
                         <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1 items-center border border-stone-100 dark:border-stone-700">
@@ -514,7 +429,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Type a message..."
+                        placeholder="Ask about health, relationships, career, spirituality..."
                         className="flex-1 bg-stone-100 dark:bg-slate-700 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 dark:text-white"
                         disabled={loading}
                     />
@@ -524,7 +439,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                         aria-label="Send Message"
                         className={clsx(
                             "w-12 h-12 rounded-xl flex items-center justify-center text-white transition-colors",
-                            !input.trim() || loading ? "bg-stone-300 dark:bg-slate-600" : guru.color
+                            !input.trim() || loading ? "bg-stone-300 dark:bg-slate-600" : "bg-gradient-to-br from-amber-500 to-orange-600"
                         )}
                     >
                         <Send size={20} />
@@ -545,10 +460,10 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                                 <RotateCcw className="text-red-600 dark:text-red-400" size={24} />
                             </div>
                             <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-2">
-                                Restart Conversation?
+                                Start Fresh?
                             </h3>
                             <p className="text-stone-600 dark:text-stone-400 text-sm mb-6">
-                                This will delete all messages with {guru.name}. Any seeds you've already planted will remain in your garden.
+                                This will clear your conversation history. Your seeds and wisdom notes will remain.
                             </p>
                             <div className="flex gap-3">
                                 <button
@@ -561,7 +476,7 @@ Ekadashi Status: ${nextEkadashiDays === 0 ? nextEkadashiType : `${nextEkadashiTy
                                     onClick={handleRestartConversation}
                                     className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
                                 >
-                                    Restart
+                                    Clear
                                 </button>
                             </div>
                         </div>

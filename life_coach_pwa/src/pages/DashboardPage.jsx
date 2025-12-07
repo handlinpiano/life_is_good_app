@@ -2,145 +2,21 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, ChevronUp, Heart, Briefcase, Activity, Sparkles, Zap, Moon, X, MessageCircle } from 'lucide-react';
-import clsx from 'clsx';
-import BirthForm from '../components/BirthForm';
+import { ChevronRight, ChevronDown, ChevronUp, Heart, Briefcase, Sparkles, User, MapPin, Calendar, Clock, MessageCircle } from 'lucide-react';
 import NorthIndianChart from '../components/NorthIndianChart';
 import DailyAlignmentModal from '../components/DailyAlignmentModal';
 import PlanetTable from '../components/PlanetTable';
 import DivisionalCharts from '../components/DivisionalCharts';
 import Navbar from '../components/Navbar';
 
-const GURUS = [
-    {
-        id: 'health_ayurveda',
-        category: 'Health',
-        name: 'Vaidya Jiva',
-        title: 'Ayurvedic Healer',
-        description: 'Ancient wisdom for diet, sleep, and balance.',
-        icon: Activity,
-        color: 'bg-green-100 text-green-700',
-        border: 'border-green-200'
-    },
-    {
-        id: 'health_yoga',
-        category: 'Health',
-        name: 'Yogini Shakti',
-        title: 'Movement Guide',
-        description: 'Asanas and pranayama for vitality.',
-        icon: Zap,
-        color: 'bg-emerald-100 text-emerald-700',
-        border: 'border-emerald-200'
-    },
-    {
-        id: 'spiritual_sadhana',
-        category: 'Spiritual',
-        name: 'Swami Prana',
-        title: 'Sadhana Mentor',
-        description: 'Deep practices and meditation techniques.',
-        icon: Moon,
-        color: 'bg-indigo-100 text-indigo-700',
-        border: 'border-indigo-200'
-    },
-    {
-        id: 'spiritual_wisdom',
-        category: 'Spiritual',
-        name: 'Acharya Satya',
-        title: 'Wisdom Keeper',
-        description: 'Philosophy and scriptural guidance.',
-        icon: Sparkles,
-        color: 'bg-violet-100 text-violet-700',
-        border: 'border-violet-200'
-    },
-    {
-        id: 'life_romance',
-        category: 'Life & Love',
-        name: 'Devi Kama',
-        title: 'Relationship Guide',
-        description: 'Navigating love, romance, and compatibility.',
-        icon: Heart,
-        color: 'bg-rose-100 text-rose-700',
-        border: 'border-rose-200'
-    },
-    {
-        id: 'life_career',
-        category: 'Life & Love',
-        name: 'Raja Dharma',
-        title: 'Career Strategist',
-        description: 'Success, purpose, and professional growth.',
-        icon: Briefcase,
-        color: 'bg-blue-100 text-blue-700',
-        border: 'border-blue-200'
-    }
-];
-
-function PartnerModal({ isOpen, onClose, onSubmit, loading, error }) {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            >
-                <div className="p-4 border-b border-stone-200 dark:border-stone-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-800 z-10">
-                    <h3 className="text-xl font-bold text-amber-900 dark:text-amber-100">Partner Details</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700">
-                        <X size={24} className="text-stone-500" />
-                    </button>
-                </div>
-
-                <div className="p-6">
-                    <p className="mb-6 text-stone-600 dark:text-stone-300">
-                        To provide the best relationship guidance, we need to understand your partner's cosmic blueprint for synastry analysis.
-                    </p>
-
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    <BirthForm onSubmit={onSubmit} loading={loading} />
-                </div>
-            </motion.div>
-        </div>
-    );
-}
-
 export default function DashboardPage() {
     const user = useStore(state => state.user);
     const chart = useStore(state => state.chart);
-    const loading = useStore(state => state.loading);
-    const error = useStore(state => state.error);
-    const calculateCompatibility = useStore(state => state.calculateCompatibility);
 
     const navigate = useNavigate();
-    const [showPartnerModal, setShowPartnerModal] = useState(false);
     const [showBlueprint, setShowBlueprint] = useState(false);
     const [showAlignment, setShowAlignment] = useState(false);
-
-    // Simply navigate to chat with the guru
-    const handleGuruClick = (guruId) => {
-        navigate('/chat/' + guruId);
-    };
-
-    const handlePartnerSubmit = async (data) => {
-        const birth_data = {
-            date: `${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}`,
-            time: `${String(data.hour).padStart(2, '0')}:${String(data.minute).padStart(2, '0')}`,
-            latitude: data.latitude,
-            longitude: data.longitude
-        };
-
-        const success = await calculateCompatibility(birth_data);
-        if (success) {
-            setShowPartnerModal(false);
-            navigate('/chat/life_romance');
-        }
-    };
+    const [showProfile, setShowProfile] = useState(false);
 
     if (!chart) {
         return (
@@ -149,8 +25,6 @@ export default function DashboardPage() {
             </div>
         );
     }
-
-    const categories = ['Health', 'Spiritual', 'Life & Love'];
 
     return (
         <div className="min-h-screen bg-stone-50 dark:bg-slate-900 pb-20">
@@ -187,6 +61,101 @@ export default function DashboardPage() {
                         </div>
                         <ChevronRight className="transform group-hover:translate-x-1 transition-transform" />
                     </button>
+
+                    {/* Profile Details Section */}
+                    <div>
+                        <button
+                            onClick={() => setShowProfile(!showProfile)}
+                            className="flex items-center gap-2 text-stone-500 hover:text-amber-600 font-medium w-full"
+                        >
+                            {showProfile ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            <User size={18} />
+                            {showProfile ? "Hide Birth Details" : "View Your Birth Details"}
+                        </button>
+
+                        <AnimatePresence>
+                            {showProfile && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="mt-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-700">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="flex items-start gap-3">
+                                                <User size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Name</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">{user.name || 'Not set'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <User size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Gender</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">{user.gender || 'Not set'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <Calendar size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Birth Date</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">
+                                                        {user.birthData?.date || 'Not set'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <Clock size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Birth Time</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">
+                                                        {(() => {
+                                                            const time = user.birthData?.time;
+                                                            if (!time) return 'Not set';
+                                                            const [hours, minutes] = time.split(':').map(Number);
+                                                            const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                            const displayHours = hours % 12 || 12;
+                                                            return `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
+                                                        })()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3 sm:col-span-2">
+                                                <MapPin size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Birth Place</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">
+                                                        {user.birthPlace || 'Not set'}
+                                                    </p>
+                                                    {user.birthData?.latitude && (
+                                                        <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">
+                                                            Lat: {user.birthData.latitude}, Long: {user.birthData.longitude}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <Heart size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Relationship Status</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">{user.relationshipStatus || 'Not set'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <Briefcase size={18} className="text-amber-600 mt-0.5" />
+                                                <div>
+                                                    <p className="text-xs text-stone-500 dark:text-stone-400">Profession</p>
+                                                    <p className="font-medium text-stone-800 dark:text-stone-100">{user.profession || 'Not set'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
                     {/* Cosmic Blueprint Section */}
                     <div>
@@ -233,53 +202,26 @@ export default function DashboardPage() {
                         </AnimatePresence>
                     </div>
 
-                    <section className="text-center space-y-2">
-                        <h2 className="text-3xl font-bold text-stone-800 dark:text-stone-100">
-                            Your Guides
-                        </h2>
-                        <p className="text-stone-600 dark:text-stone-400 max-w-lg mx-auto">
-                            Click on any guide to chat. They remember your conversations and know your chart.
-                        </p>
-                    </section>
-
-                    {categories.map(category => (
-                        <section key={category} className="space-y-4">
-                            <h3 className="text-xl font-semibold text-stone-700 dark:text-stone-300 border-b border-stone-200 pb-2">
-                                {category}
-                            </h3>
-                            <div className="grid md:grid-cols-2 gap-4">
-                                {GURUS.filter(g => g.category === category).map(guru => {
-                                    const Icon = guru.icon;
-
-                                    return (
-                                        <motion.div
-                                            key={guru.id}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => handleGuruClick(guru.id)}
-                                            className="rounded-xl p-4 border-2 border-transparent bg-white shadow-sm dark:bg-slate-800 hover:shadow-md cursor-pointer transition-all"
-                                        >
-                                            <div className="flex items-start gap-4">
-                                                <div className={clsx("p-3 rounded-lg", guru.color)}>
-                                                    <Icon size={24} />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h4 className="font-bold text-lg dark:text-white">{guru.name}</h4>
-                                                    <p className="text-sm font-medium mb-1 text-stone-500 dark:text-stone-400">{guru.title}</p>
-                                                    <p className="text-sm text-stone-600 dark:text-stone-300">{guru.description}</p>
-                                                    <div className="mt-3">
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 rounded-full text-xs font-medium">
-                                                            <MessageCircle size={14} /> Chat Now
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
+                    {/* Chat with Guide */}
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/chat')}
+                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-white/20 p-3 rounded-lg">
+                                    <MessageCircle size={28} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-xl">Chat with Your Guide</h3>
+                                    <p className="text-white/80">Get personalized wisdom based on your chart</p>
+                                </div>
                             </div>
-                        </section>
-                    ))}
+                            <ChevronRight size={24} className="transform group-hover:translate-x-1 transition-transform" />
+                        </div>
+                    </motion.button>
 
                     <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-t border-stone-200 dark:border-stone-800 z-20">
                         <div className="max-w-4xl mx-auto flex justify-end items-center">
@@ -295,15 +237,6 @@ export default function DashboardPage() {
             </div>
 
             <AnimatePresence>
-                {showPartnerModal && (
-                    <PartnerModal
-                        isOpen={showPartnerModal}
-                        onClose={() => setShowPartnerModal(false)}
-                        onSubmit={handlePartnerSubmit}
-                        loading={loading}
-                        error={error}
-                    />
-                )}
                 {showAlignment && (
                     <DailyAlignmentModal
                         isOpen={showAlignment}

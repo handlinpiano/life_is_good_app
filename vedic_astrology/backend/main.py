@@ -4,9 +4,9 @@ Vedic Astrology API - FastAPI Backend
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from models import BirthData, ChartResponse, ChatRequest, SynastryRequest, AlignmentRequest
+from models import BirthData, ChartResponse, ChatRequest, SimpleChatRequest, SynastryRequest, AlignmentRequest
 from calculator import calculate_chart, calculate_navamsa, calculate_dasha, calculate_all_vargas, calculate_synastry, calculate_current_alignment
-from interpreter import interpret_chart, interpret_chart_structured, chat_about_chart, interpret_synastry
+from interpreter import interpret_chart, interpret_chart_structured, chat_about_chart, simple_chat, interpret_synastry
 
 app = FastAPI(
     title="Vedic Astrology API",
@@ -21,9 +21,12 @@ app.add_middleware(
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:8090",  # PocketBase local
+        "http://localhost:8090",
         "https://www.vedicas.com",  # Production domain
         "https://vedicas.com",
         "https://lifecoach-d9t3e249d-handlinpianos-projects.vercel.app",  # Vercel preview
+        "*",  # Allow all origins for now (will restrict in production)
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -235,15 +238,38 @@ def get_synastry(request: SynastryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/chat/v2")
+def chat_simple(request: SimpleChatRequest):
+    """
+    Simple chat - just message + history.
+
+    All context (system prompt, chart data, persona) is already in the history.
+    No recalculation needed - just pass to LLM and get response.
+    """
+    try:
+        # Convert to dict format
+        history = [{"role": msg.role, "content": msg.content} for msg in request.history]
+
+        # Get chat response
+        result = simple_chat(request.message, history)
+
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Chat failed"))
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/chat")
 def chat_followup(request: ChatRequest):
     """
-    Have a follow-up conversation about the birth chart.
+    Have a follow-up conversation about the birth chart (legacy - recalculates).
 
-    Send questions about specific aspects of the chart, divisional charts,
-    remedies, timing, or any topic from the initial reading.
-
-    The conversation_history maintains context for multi-turn conversations.
+    DEPRECATED: Use /api/chat/v2 with pre-calculated chart data instead.
     """
     try:
         data = request.birth_data

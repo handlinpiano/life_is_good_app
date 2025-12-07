@@ -1,253 +1,253 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import {
-    supabase,
-    isOnline,
-    signIn as supabaseSignIn,
-    signUp as supabaseSignUp,
-    signOut as supabaseSignOut,
-    getCurrentUser,
-    getProfile,
-    saveProfile,
-    pullAllData,
-    syncSeeds,
-    syncLogs,
-    syncWisdom,
-    syncMessages,
-    syncCheckins
-} from '../utils/supabase';
-import { db, setUserIdGetter } from '../utils/db';
-import { useStore } from '../store';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { useStore, setUserIdGetter } from '../store';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
+    const { signOut: clerkSignOut } = useClerkAuth();
+    const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
+
     const [syncing, setSyncing] = useState(false);
+    const [hasSynced, setHasSynced] = useState(false);
+
+    // Convex queries and mutations - only run when authenticated
+    const profile = useQuery(api.profiles.get, isAuthenticated ? {} : "skip");
+    const cloudSeeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip");
+    const cloudWisdom = useQuery(api.wisdom.list, isAuthenticated ? {} : "skip");
+    const cloudMessages = useQuery(api.messages.list, isAuthenticated ? {} : "skip");
+    const cloudCheckins = useQuery(api.checkins.list, isAuthenticated ? {} : "skip");
+
+    const upsertProfile = useMutation(api.profiles.upsert);
+    const syncSeeds = useMutation(api.seeds.syncAll);
+    const syncWisdom = useMutation(api.wisdom.syncAll);
+    const syncMessages = useMutation(api.messages.syncAll);
+    const syncCheckins = useMutation(api.checkins.syncAll);
+
+    // Get store actions
     const setStoreUser = useStore(state => state.setUser);
     const setChart = useStore(state => state.setChart);
+    const setDasha = useStore(state => state.setDasha);
+    const setSeeds = useStore(state => state.setSeeds);
+    const setWisdom = useStore(state => state.setWisdom);
+    const setMessages = useStore(state => state.setMessages);
+    const setCheckins = useStore(state => state.setCheckins);
+    const resetEverything = useStore(state => state.resetEverything);
 
+    // Set up user ID getter for store sync
     useEffect(() => {
-        // Set up the user ID getter for db.js sync
-        setUserIdGetter(() => user?.id || null);
-    }, [user]);
+        setUserIdGetter(() => clerkUser?.id || null);
+    }, [clerkUser]);
 
+    // Load data from Convex into Zustand when profile loads
     useEffect(() => {
-        // Check for existing session
-        const initAuth = async () => {
-            if (!isOnline()) {
-                setLoading(false);
-                return;
-            }
+        if (!isAuthenticated || hasSynced) return;
+        if (profile === undefined) return; // Still loading
 
-            const currentUser = await getCurrentUser();
-            if (currentUser) {
-                setUser(currentUser);
-                // Pull data from cloud on login
-                await syncFromCloud(currentUser.id);
-            }
-            setLoading(false);
-        };
+        console.log('[Auth] Loading from Convex...');
+        setHasSynced(true);
 
-        initAuth();
-
-        // Listen for auth changes
-        if (supabase) {
-            const { data: { subscription } } = supabase.auth.onAuthStateChange(
-                async (event, session) => {
-                    if (event === 'SIGNED_IN' && session?.user) {
-                        setUser(session.user);
-                        await syncFromCloud(session.user.id);
-                    } else if (event === 'SIGNED_OUT') {
-                        setUser(null);
-                    }
-                }
-            );
-
-            return () => subscription.unsubscribe();
-        }
-    }, []);
-
-    // Sync data FROM cloud to local
-    const syncFromCloud = async (userId) => {
-        if (!isOnline()) return;
-
-        setSyncing(true);
-        try {
-            const cloudData = await pullAllData(userId);
-
-            if (cloudData) {
-                // Sync profile to store
-                if (cloudData.profile) {
-                    setStoreUser({
-                        name: cloudData.profile.name,
-                        birthDate: cloudData.profile.birth_date,
-                        birthTime: cloudData.profile.birth_time,
-                        birthPlace: cloudData.profile.birth_place,
-                        latitude: cloudData.profile.latitude,
-                        longitude: cloudData.profile.longitude
-                    });
-                    if (cloudData.profile.chart_data) {
-                        setChart(cloudData.profile.chart_data);
-                    }
-                }
-
-                // Sync seeds to Dexie
-                if (cloudData.seeds?.length > 0) {
-                    await db.seeds.clear();
-                    const seedsForDexie = cloudData.seeds.map(s => ({
-                        id: s.local_id,
-                        title: s.title,
-                        category: s.category,
-                        description: s.description,
-                        frequency: s.frequency,
-                        difficulty: s.difficulty,
-                        gurus_id: s.gurus_id,
-                        created_at: new Date(s.created_at)
-                    }));
-                    await db.seeds.bulkPut(seedsForDexie);
-                }
-
-                // Sync logs
-                if (cloudData.logs?.length > 0) {
-                    await db.logs.clear();
-                    const logsForDexie = cloudData.logs.map(l => ({
-                        id: l.local_id,
-                        seed_id: l.seed_id,
-                        date: l.date,
-                        status: l.status,
-                        timestamp: new Date(l.timestamp)
-                    }));
-                    await db.logs.bulkPut(logsForDexie);
-                }
-
-                // Sync wisdom
-                if (cloudData.wisdom?.length > 0) {
-                    await db.wisdom.clear();
-                    const wisdomForDexie = cloudData.wisdom.map(w => ({
-                        id: w.local_id,
-                        title: w.title,
-                        category: w.category,
-                        content: w.content,
-                        guru_id: w.guru_id,
-                        created_at: new Date(w.created_at)
-                    }));
-                    await db.wisdom.bulkPut(wisdomForDexie);
-                }
-
-                // Sync messages
-                if (cloudData.messages?.length > 0) {
-                    await db.messages.clear();
-                    const messagesForDexie = cloudData.messages.map(m => ({
-                        id: m.local_id,
-                        guru_id: m.guru_id,
-                        role: m.role,
-                        content: m.content,
-                        timestamp: new Date(m.timestamp)
-                    }));
-                    await db.messages.bulkPut(messagesForDexie);
-                }
-
-                // Sync checkins
-                if (cloudData.checkins?.length > 0) {
-                    await db.checkins.clear();
-                    const checkinsForDexie = cloudData.checkins.map(c => ({
-                        id: c.local_id,
-                        date: c.date,
-                        panchang: c.panchang,
-                        seeds_watered: c.seeds_watered,
-                        seeds_total: c.seeds_total,
-                        timestamp: new Date(c.timestamp)
-                    }));
-                    await db.checkins.bulkPut(checkinsForDexie);
-                }
-            }
-        } catch (error) {
-            console.error('Error syncing from cloud:', error);
-        } finally {
-            setSyncing(false);
-        }
-    };
-
-    // Sync data TO cloud from local
-    const syncToCloud = async () => {
-        if (!isOnline() || !user) return;
-
-        setSyncing(true);
-        try {
-            const storeState = useStore.getState();
-
-            // Sync profile
-            await saveProfile(user.id, {
-                name: storeState.user?.name,
-                birth_date: storeState.user?.birthDate,
-                birth_time: storeState.user?.birthTime,
-                birth_place: storeState.user?.birthPlace,
-                latitude: storeState.user?.latitude,
-                longitude: storeState.user?.longitude,
-                chart_data: storeState.chart
+        if (profile) {
+            // Load profile into store
+            setStoreUser({
+                name: profile.name,
+                gender: profile.gender,
+                profession: profile.profession,
+                relationshipStatus: profile.relationshipStatus,
+                birthPlace: profile.birthPlace,
+                birthData: profile.birthData
             });
 
-            // Sync all local data
-            const [seeds, logs, wisdom, messages, checkins] = await Promise.all([
-                db.seeds.toArray(),
-                db.logs.toArray(),
-                db.wisdom.toArray(),
-                db.messages.toArray(),
-                db.checkins.toArray()
-            ]);
+            if (profile.chartData) {
+                setChart(profile.chartData);
+            }
 
-            await Promise.all([
-                syncSeeds(user.id, seeds),
-                syncLogs(user.id, logs),
-                syncWisdom(user.id, wisdom),
-                syncMessages(user.id, messages),
-                syncCheckins(user.id, checkins)
-            ]);
+            if (profile.dashaData) {
+                setDasha(profile.dashaData);
+            }
+        }
+
+        // Load seeds
+        if (cloudSeeds?.length > 0) {
+            const seeds = cloudSeeds.map(s => ({
+                id: s.localId,
+                title: s.title,
+                category: s.category,
+                description: s.description,
+                streak: s.streak,
+                lastCompleted: s.lastCompleted,
+                completedDates: s.completedDates,
+                active: s.active,
+                created_at: new Date(s._creationTime)
+            }));
+            setSeeds(seeds);
+        }
+
+        // Load wisdom
+        if (cloudWisdom?.length > 0) {
+            const wisdom = cloudWisdom.map(w => ({
+                id: w.localId,
+                title: w.title,
+                category: w.category,
+                content: w.content,
+                guruId: w.guruId,
+                favorite: w.favorite,
+                created_at: new Date(w._creationTime)
+            }));
+            setWisdom(wisdom);
+        }
+
+        // Load messages
+        if (cloudMessages?.length > 0) {
+            const messages = cloudMessages.map(m => ({
+                id: m.localId,
+                role: m.role,
+                content: m.content,
+                timestamp: new Date(m.timestamp)
+            }));
+            setMessages(messages);
+        }
+
+        // Load checkins
+        if (cloudCheckins?.length > 0) {
+            const checkins = cloudCheckins.map(c => ({
+                id: c.localId,
+                date: c.date,
+                mood: c.mood,
+                energy: c.energy,
+                focus: c.focus,
+                gratitude: c.gratitude,
+                notes: c.notes,
+                timestamp: new Date(c._creationTime)
+            }));
+            setCheckins(checkins);
+        }
+
+        console.log('[Auth] Data loaded from Convex');
+    }, [isAuthenticated, profile, cloudSeeds, cloudWisdom, cloudMessages, cloudCheckins, hasSynced,
+        setStoreUser, setChart, setDasha, setSeeds, setWisdom, setMessages, setCheckins]);
+
+    // Save current Zustand state to Convex
+    const saveToCloud = useCallback(async () => {
+        if (!isAuthenticated) {
+            console.warn('[Auth] saveToCloud: not authenticated');
+            return { success: false };
+        }
+
+        setSyncing(true);
+        try {
+            const state = useStore.getState();
+            console.log('[Auth] Saving to Convex...');
+
+            // Save profile
+            await upsertProfile({
+                name: state.user?.name,
+                gender: state.user?.gender,
+                profession: state.user?.profession,
+                relationshipStatus: state.user?.relationshipStatus,
+                birthPlace: state.user?.birthPlace,
+                birthData: state.user?.birthData,
+                chartData: state.chart,
+                dashaData: state.dasha
+            });
+
+            // Sync seeds
+            if (state.seeds?.length > 0) {
+                await syncSeeds({
+                    seeds: state.seeds.map(s => ({
+                        localId: s.id,
+                        title: s.title,
+                        category: s.category || '',
+                        description: s.description || '',
+                        streak: s.streak || 0,
+                        lastCompleted: s.lastCompleted || null,
+                        completedDates: s.completedDates || [],
+                        active: s.active !== false
+                    }))
+                });
+            }
+
+            // Sync wisdom
+            if (state.wisdom?.length > 0) {
+                await syncWisdom({
+                    items: state.wisdom.map(w => ({
+                        localId: w.id,
+                        title: w.title || '',
+                        category: w.category || 'General',
+                        content: w.content || '',
+                        guruId: w.guruId,
+                        favorite: w.favorite || false
+                    }))
+                });
+            }
+
+            // Sync messages
+            if (state.messages?.length > 0) {
+                await syncMessages({
+                    items: state.messages.map(m => ({
+                        localId: m.id,
+                        role: m.role,
+                        content: m.content,
+                        timestamp: m.timestamp?.getTime() || Date.now()
+                    }))
+                });
+            }
+
+            // Sync checkins
+            if (state.checkins?.length > 0) {
+                await syncCheckins({
+                    items: state.checkins.map(c => ({
+                        localId: c.id,
+                        date: c.date,
+                        mood: c.mood,
+                        energy: c.energy,
+                        focus: c.focus,
+                        gratitude: c.gratitude,
+                        notes: c.notes
+                    }))
+                });
+            }
+
+            console.log('[Auth] Save successful');
+            return { success: true };
 
         } catch (error) {
-            console.error('Error syncing to cloud:', error);
+            console.error('[Auth] Error saving to Convex:', error);
+            return { success: false, error };
         } finally {
             setSyncing(false);
         }
-    };
-
-    const signIn = async (email, password) => {
-        const result = await supabaseSignIn(email, password);
-        if (!result.error && result.data?.user) {
-            setUser(result.data.user);
-            await syncFromCloud(result.data.user.id);
-        }
-        return result;
-    };
-
-    const signUp = async (email, password, name) => {
-        const result = await supabaseSignUp(email, password, name);
-        if (!result.error && result.data?.user) {
-            // After signup, sync local data to cloud
-            setUser(result.data.user);
-            await syncToCloud();
-        }
-        return result;
-    };
+    }, [isAuthenticated, upsertProfile, syncSeeds, syncWisdom, syncMessages, syncCheckins]);
 
     const signOut = async () => {
-        // Sync before signing out
-        await syncToCloud();
-        await supabaseSignOut();
-        setUser(null);
+        console.log('[Auth] signOut called');
+        await saveToCloud();
+        await clerkSignOut();
+        setHasSynced(false);
+        resetEverything();
     };
 
+    const loading = !clerkLoaded || convexLoading;
+
     const value = {
-        user,
+        user: clerkUser ? {
+            id: clerkUser.id,
+            email: clerkUser.primaryEmailAddress?.emailAddress,
+            name: clerkUser.fullName || clerkUser.firstName
+        } : null,
         loading,
         syncing,
-        isOnline: isOnline(),
-        signIn,
-        signUp,
+        isOnline: true,
+        isAuthenticated,
         signOut,
-        syncToCloud,
-        syncFromCloud: () => user && syncFromCloud(user.id)
+        saveToCloud,
+        syncToCloud: saveToCloud,
+        refreshFromCloud: () => {
+            setHasSynced(false);
+        }
     };
 
     return (
@@ -257,6 +257,7 @@ export function AuthProvider({ children }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
