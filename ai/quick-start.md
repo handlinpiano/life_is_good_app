@@ -198,12 +198,21 @@ const upsert = useMutation(api.myTable.upsert);
 ## Environment Variables
 
 ### Convex Dashboard
-- `CLERK_ISSUER_URL` - Your Clerk issuer URL (e.g., `https://clerk.your-app.com`)
+- `CLERK_ISSUER_URL` / `CLERK_JWT_ISSUER_DOMAIN` - Clerk issuer for JWT validation
+- **Test auth backdoor** (optional, for Playwright / agent browser):
+  ```bash
+  cd life_coach_pwa
+  node scripts/setup-test-auth.mjs --apply --secret 'your-shared-secret'
+  npx convex dev   # or deploy — pushes http.ts + auth.config
+  ```
+  Then open `/dev-login`, enter the secret. User subject: `test_user_playwright`.
 
 ### Frontend (.env.local)
 ```
 VITE_CONVEX_URL=https://your-project.convex.cloud
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+# optional: expose /dev-login in production builds
+# VITE_ENABLE_TEST_AUTH=true
 ```
 
 ### Backend (Railway)

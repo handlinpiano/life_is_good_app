@@ -9,9 +9,11 @@
  */
 
 import type * as checkins from "../checkins.js";
+import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as profiles from "../profiles.js";
 import type * as seeds from "../seeds.js";
+import type * as testAuthKeys from "../testAuthKeys.js";
 import type * as wisdom from "../wisdom.js";
 
 import type {
@@ -22,9 +24,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   checkins: typeof checkins;
+  http: typeof http;
   messages: typeof messages;
   profiles: typeof profiles;
   seeds: typeof seeds;
+  testAuthKeys: typeof testAuthKeys;
   wisdom: typeof wisdom;
 }>;
 

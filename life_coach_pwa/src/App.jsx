@@ -8,25 +8,26 @@ import DashboardPage from './pages/DashboardPage';
 import GardenPage from './pages/GardenPage';
 import WisdomPage from './pages/WisdomPage';
 import ChatPage from './pages/ChatPage';
+import DevLoginPage from './pages/DevLoginPage';
+import { isTestAuthRouteEnabled } from './lib/testAuth';
 
-// Main App Component with Routing
-export default function App() {
+export default function App({ authMode = 'clerk' }) {
   return (
-    <AuthProvider>
+    <AuthProvider authMode={authMode}>
       <Router>
         <Routes>
-          {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          {isTestAuthRouteEnabled() && (
+            <Route path="/dev-login" element={<DevLoginPage />} />
+          )}
 
-          {/* Protected: Requires auth but not chart */}
           <Route path="/birth-chart" element={
             <ProtectedRoute>
               <IntakePage />
             </ProtectedRoute>
           } />
 
-          {/* Protected: Requires auth AND chart */}
           <Route path="/dashboard" element={
             <ProtectedRoute requireChart>
               <DashboardPage />

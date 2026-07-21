@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Test auth keys (never commit private key)
+.test-keys/
+
+.test-auth.local

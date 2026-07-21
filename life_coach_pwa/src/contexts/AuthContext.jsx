@@ -3,18 +3,36 @@ import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useStore } from '../store';
+import {
+  clearTestAuthSession,
+  getTestAuthSession,
+  TEST_USER_DEFAULTS,
+} from '../lib/testAuth';
 
 const AuthContext = createContext(null);
 
 /**
  * Auth + continuous profile hydrate.
- * Seeds / wisdom / messages / check-ins are NOT synced here — pages use Convex hooks.
+ * Supports Clerk (default) and test-JWT backdoor (authMode === 'test').
  */
-export function AuthProvider({ children }) {
-  const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
-  const { signOut: clerkSignOut } = useClerkAuth();
-  const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
+export function AuthProvider({ children, authMode = 'clerk' }) {
+  const isTestMode = authMode === 'test';
+  const testSession = isTestMode ? getTestAuthSession() : null;
 
+  // Clerk hooks only valid under ClerkProvider — call them only in clerk mode
+  // by splitting components.
+  if (isTestMode) {
+    return (
+      <TestAuthProviderInner testSession={testSession}>
+        {children}
+      </TestAuthProviderInner>
+    );
+  }
+
+  return <ClerkAuthProviderInner>{children}</ClerkAuthProviderInner>;
+}
+
+function useProfileHydrate(isAuthenticated) {
   const profile = useQuery(api.profiles.get, isAuthenticated ? {} : 'skip');
   const upsertProfile = useMutation(api.profiles.upsert);
 
@@ -24,11 +42,10 @@ export function AuthProvider({ children }) {
   const resetEverything = useStore((state) => state.resetEverything);
   const storeChart = useStore((state) => state.chart);
 
-  // Continuously mirror Convex profile → Zustand (not a one-shot hydrate)
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (profile === undefined) return; // still loading
-    if (profile === null) return; // no profile yet (new user)
+    if (profile === undefined) return;
+    if (profile === null) return;
 
     setStoreUser({
       name: profile.name || '',
@@ -39,18 +56,10 @@ export function AuthProvider({ children }) {
       birthData: profile.birthData || null,
     });
 
-    if (profile.chartData) {
-      setChart(profile.chartData);
-    }
-    if (profile.dashaData) {
-      setDasha(profile.dashaData);
-    }
+    if (profile.chartData) setChart(profile.chartData);
+    if (profile.dashaData) setDasha(profile.dashaData);
   }, [isAuthenticated, profile, setStoreUser, setChart, setDasha]);
 
-  /**
-   * Persist current profile/chart/dasha from the store to Convex.
-   * Used after intake (and anytime profile fields change intentionally).
-   */
   const saveProfile = useCallback(
     async (overrides = {}) => {
       if (!isAuthenticated) {
@@ -80,17 +89,33 @@ export function AuthProvider({ children }) {
     [isAuthenticated, upsertProfile]
   );
 
+  return {
+    profile,
+    saveProfile,
+    resetEverything,
+    storeChart,
+  };
+}
+
+function ClerkAuthProviderInner({ children }) {
+  const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
+  const { signOut: clerkSignOut } = useClerkAuth();
+  const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
+
+  const { profile, saveProfile, resetEverything, storeChart } =
+    useProfileHydrate(isAuthenticated);
+
   const signOut = async () => {
     await clerkSignOut();
     resetEverything();
   };
 
   const loading = !clerkLoaded || convexLoading;
-  // Profile query settled when not authenticated, or when query returned null/object
   const profileReady = !isAuthenticated || profile !== undefined;
   const hasChart = Boolean(profile?.chartData || storeChart);
 
   const value = {
+    authMode: 'clerk',
     user: clerkUser
       ? {
           id: clerkUser.id,
@@ -106,7 +131,57 @@ export function AuthProvider({ children }) {
     isAuthenticated,
     signOut,
     saveProfile,
-    // Back-compat aliases used by Intake / older UI
+    saveToCloud: saveProfile,
+    syncToCloud: saveProfile,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  );
+}
+
+function TestAuthProviderInner({ children, testSession }) {
+  const { isLoading: convexLoading, isAuthenticated } = useConvexAuth();
+  const { profile, saveProfile, resetEverything, storeChart } =
+    useProfileHydrate(isAuthenticated);
+
+  // Seed display name into store if profile empty
+  useEffect(() => {
+    if (!isAuthenticated || !testSession) return;
+    if (profile) return;
+    const state = useStore.getState();
+    if (!state.user?.name) {
+      useStore.getState().updateUser({ name: testSession.name || TEST_USER_DEFAULTS.name });
+    }
+  }, [isAuthenticated, testSession, profile]);
+
+  const signOut = async () => {
+    clearTestAuthSession();
+    resetEverything();
+    window.location.assign('/');
+  };
+
+  const loading = convexLoading;
+  const profileReady = !isAuthenticated || profile !== undefined;
+  const hasChart = Boolean(profile?.chartData || storeChart);
+
+  const value = {
+    authMode: 'test',
+    user: isAuthenticated
+      ? {
+          id: testSession?.subject || TEST_USER_DEFAULTS.id,
+          email: testSession?.email || TEST_USER_DEFAULTS.email,
+          name: testSession?.name || TEST_USER_DEFAULTS.name,
+        }
+      : null,
+    loading,
+    profileReady,
+    profile,
+    hasChart,
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    isAuthenticated,
+    signOut,
+    saveProfile,
     saveToCloud: saveProfile,
     syncToCloud: saveProfile,
   };
