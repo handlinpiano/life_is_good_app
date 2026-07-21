@@ -7,6 +7,42 @@ export function getLocalDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+/** Stable client-side id for Convex localId fields */
+export function newLocalId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export const SEED_CATEGORIES = {
+  HEALTH: 'Health',
+  SPIRITUAL: 'Spiritual',
+  RELATIONSHIP: 'Relationship',
+  CAREER: 'Career',
+  GENERAL: 'General',
+};
+
+export const SEED_DIFFICULTIES = {
+  Tiny: { label: 'Tiny', points: 5, color: 'bg-slate-100 text-slate-700' },
+  Easy: { label: 'Easy', points: 10, color: 'bg-green-100 text-green-700' },
+  Light: { label: 'Light', points: 15, color: 'bg-teal-100 text-teal-700' },
+  Medium: { label: 'Medium', points: 20, color: 'bg-blue-100 text-blue-700' },
+  Moderate: { label: 'Moderate', points: 25, color: 'bg-cyan-100 text-cyan-700' },
+  Challenging: { label: 'Challenging', points: 30, color: 'bg-orange-100 text-orange-700' },
+  Hard: { label: 'Hard', points: 40, color: 'bg-red-100 text-red-700' },
+  Heroic: { label: 'Heroic', points: 50, color: 'bg-purple-100 text-purple-700' },
+};
+
+export const WISDOM_CATEGORIES = {
+  RECIPE: 'Recipe',
+  PRACTICE: 'Practice',
+  INSIGHT: 'Insight',
+  MANTRA: 'Mantra',
+  REMINDER: 'Reminder',
+  GENERAL: 'General',
+};
+
 // Planet symbols and abbreviations
 export const PLANET_SYMBOLS = {
   Sun: '☉',

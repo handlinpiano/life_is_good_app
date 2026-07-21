@@ -1,6 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const panchangValidator = v.object({
+  tithi: v.optional(v.string()),
+  nakshatra: v.optional(v.string()),
+  yoga: v.optional(v.string()),
+  day_lord: v.optional(v.string()),
+});
+
 export default defineSchema({
   // User profiles - one per authenticated user
   profiles: defineTable({
@@ -32,7 +39,9 @@ export default defineSchema({
     lastCompleted: v.optional(v.union(v.string(), v.null())),
     completedDates: v.array(v.string()),
     active: v.boolean(),
-  }).index("by_clerk_id", ["clerkId"]),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_clerk_and_local", ["clerkId", "localId"]),
 
   // Wisdom notes
   wisdom: defineTable({
@@ -46,7 +55,9 @@ export default defineSchema({
     // Legacy fields (for backwards compatibility with existing data)
     source: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
-  }).index("by_clerk_id", ["clerkId"]),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_clerk_and_local", ["clerkId", "localId"]),
 
   // Chat messages
   messages: defineTable({
@@ -55,17 +66,25 @@ export default defineSchema({
     role: v.string(),
     content: v.string(),
     timestamp: v.number(),
-  }).index("by_clerk_id", ["clerkId"]),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_clerk_and_local", ["clerkId", "localId"]),
 
-  // Daily check-ins
+  // Daily check-ins (Panchang alignment + garden snapshot)
   checkins: defineTable({
     clerkId: v.string(),
     localId: v.string(),
-    date: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    panchang: v.optional(panchangValidator),
+    seedsWatered: v.optional(v.number()),
+    seedsTotal: v.optional(v.number()),
+    // Legacy fields (older rows may still have these)
     mood: v.optional(v.number()),
     energy: v.optional(v.number()),
     focus: v.optional(v.number()),
     gratitude: v.optional(v.string()),
     notes: v.optional(v.string()),
-  }).index("by_clerk_id", ["clerkId"]),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_clerk_and_date", ["clerkId", "date"]),
 });

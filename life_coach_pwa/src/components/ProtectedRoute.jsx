@@ -1,49 +1,68 @@
 import { Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useQuery } from 'convex/react';
+import { useConvexAuth } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../store';
 
 export default function ProtectedRoute({ children, requireChart = false }) {
-    const { isAuthenticated, loading } = useAuth();
-    const chart = useStore(state => state.chart);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated: convexAuthed } = useConvexAuth();
+  const storeChart = useStore((state) => state.chart);
 
-    const [showLoading, setShowLoading] = useState(true);
+  // Single source of truth for "has chart": Convex profile (with store as optimistic cache)
+  const profile = useQuery(
+    api.profiles.get,
+    convexAuthed ? {} : 'skip'
+  );
 
-    useEffect(() => {
-        // Fail-safe: Force stop loading after 5 seconds if auth hangs
-        const timer = setTimeout(() => setShowLoading(false), 5000);
-        return () => clearTimeout(timer);
-    }, []);
+  const [showLoading, setShowLoading] = useState(true);
 
-    // Also stop showing loading if actual loading finishes
-    useEffect(() => {
-        if (!loading) {
-            // Use a microtask to avoid cascading renders
-            queueMicrotask(() => setShowLoading(false));
-        }
-    }, [loading]);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLoading(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
-    if (loading && showLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-900 dark:to-slate-800">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="animate-pulse text-amber-800 dark:text-amber-200 text-xl font-bold">Connecting to the stars...</div>
-                    <div className="text-sm text-stone-500">Taking longer than expected? <button onClick={() => window.location.reload()} className="underline hover:text-stone-800">Reload</button></div>
-                </div>
-            </div>
-        );
+  const profileLoading = convexAuthed && profile === undefined;
+  const stillLoading = (authLoading || profileLoading) && showLoading;
+
+  useEffect(() => {
+    if (!authLoading && !profileLoading) {
+      queueMicrotask(() => setShowLoading(false));
     }
+  }, [authLoading, profileLoading]);
 
-    // Not authenticated - redirect to landing
-    if (!isAuthenticated) {
-        return <Navigate to="/" replace />;
-    }
+  if (stillLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-pulse text-amber-800 dark:text-amber-200 text-xl font-bold">
+            Connecting to the stars...
+          </div>
+          <div className="text-sm text-stone-500">
+            Taking longer than expected?{' '}
+            <button
+              onClick={() => window.location.reload()}
+              className="underline hover:text-stone-800"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    // Authenticated but no chart yet - redirect to birth chart entry
-    // (unless we're already on the birth-chart page)
-    if (requireChart && !chart) {
-        return <Navigate to="/birth-chart" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
-    return children;
+  const hasChart = Boolean(profile?.chartData || storeChart);
+
+  if (requireChart && !hasChart) {
+    return <Navigate to="/birth-chart" replace />;
+  }
+
+  return children;
 }

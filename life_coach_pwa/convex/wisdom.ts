@@ -31,19 +31,20 @@ export const upsert = mutation({
 
     const existing = await ctx.db
       .query("wisdom")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .filter((q) => q.eq(q.field("localId"), args.localId))
+      .withIndex("by_clerk_and_local", (q) =>
+        q.eq("clerkId", identity.subject).eq("localId", args.localId)
+      )
       .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
       return existing._id;
-    } else {
-      return await ctx.db.insert("wisdom", {
-        clerkId: identity.subject,
-        ...args,
-      });
     }
+
+    return await ctx.db.insert("wisdom", {
+      clerkId: identity.subject,
+      ...args,
+    });
   },
 });
 
@@ -56,51 +57,13 @@ export const remove = mutation({
 
     const existing = await ctx.db
       .query("wisdom")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .filter((q) => q.eq(q.field("localId"), localId))
+      .withIndex("by_clerk_and_local", (q) =>
+        q.eq("clerkId", identity.subject).eq("localId", localId)
+      )
       .first();
 
     if (existing) {
       await ctx.db.delete(existing._id);
     }
-  },
-});
-
-// Batch sync wisdom
-export const syncAll = mutation({
-  args: {
-    items: v.array(v.object({
-      localId: v.string(),
-      title: v.optional(v.string()),
-      category: v.optional(v.string()),
-      content: v.string(),
-      guruId: v.optional(v.string()),
-      favorite: v.optional(v.boolean()),
-    })),
-  },
-  handler: async (ctx, { items }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const existing = await ctx.db
-      .query("wisdom")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .collect();
-
-    const existingMap = new Map(existing.map(w => [w.localId, w]));
-
-    for (const item of items) {
-      const ex = existingMap.get(item.localId);
-      if (ex) {
-        await ctx.db.patch(ex._id, item);
-      } else {
-        await ctx.db.insert("wisdom", {
-          clerkId: identity.subject,
-          ...item,
-        });
-      }
-    }
-
-    return { synced: items.length };
   },
 });

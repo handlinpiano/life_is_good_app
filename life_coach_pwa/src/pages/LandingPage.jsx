@@ -3,23 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Moon, Heart, Activity, Briefcase, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useStore } from '../store';
 
 export default function LandingPage() {
     const navigate = useNavigate();
-    const { user, loading } = useAuth();
-    const chart = useStore(state => state.chart);
+    const { user, loading, profileReady, hasChart } = useAuth();
 
-    // Redirect authenticated users appropriately (but don't block render)
+    // Redirect authenticated users once Convex profile has settled
     useEffect(() => {
-        if (!loading && user) {
-            if (chart) {
+        if (!loading && profileReady && user) {
+            if (hasChart) {
                 navigate('/dashboard');
             } else {
                 navigate('/birth-chart');
             }
         }
-    }, [user, chart, loading, navigate]);
+    }, [user, hasChart, loading, profileReady, navigate]);
 
     // Don't block landing page render - show it immediately
     // The redirect will happen automatically if user is logged in

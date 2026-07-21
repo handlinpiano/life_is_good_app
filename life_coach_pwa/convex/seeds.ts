@@ -34,63 +34,20 @@ export const upsert = mutation({
 
     const existing = await ctx.db
       .query("seeds")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .filter((q) => q.eq(q.field("localId"), args.localId))
+      .withIndex("by_clerk_and_local", (q) =>
+        q.eq("clerkId", identity.subject).eq("localId", args.localId)
+      )
       .first();
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
       return existing._id;
-    } else {
-      return await ctx.db.insert("seeds", {
-        clerkId: identity.subject,
-        ...args,
-      });
-    }
-  },
-});
-
-// Batch sync seeds
-export const syncAll = mutation({
-  args: {
-    seeds: v.array(v.object({
-      localId: v.string(),
-      title: v.string(),
-      category: v.optional(v.string()),
-      description: v.optional(v.string()),
-      difficulty: v.optional(v.string()),
-      streak: v.number(),
-      lastCompleted: v.optional(v.union(v.string(), v.null())),
-      completedDates: v.array(v.string()),
-      active: v.boolean(),
-    })),
-  },
-  handler: async (ctx, { seeds }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    // Get existing seeds
-    const existing = await ctx.db
-      .query("seeds")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .collect();
-
-    const existingMap = new Map(existing.map(s => [s.localId, s]));
-
-    // Upsert each seed
-    for (const seed of seeds) {
-      const ex = existingMap.get(seed.localId);
-      if (ex) {
-        await ctx.db.patch(ex._id, seed);
-      } else {
-        await ctx.db.insert("seeds", {
-          clerkId: identity.subject,
-          ...seed,
-        });
-      }
     }
 
-    return { synced: seeds.length };
+    return await ctx.db.insert("seeds", {
+      clerkId: identity.subject,
+      ...args,
+    });
   },
 });
 
@@ -103,8 +60,9 @@ export const remove = mutation({
 
     const existing = await ctx.db
       .query("seeds")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .filter((q) => q.eq(q.field("localId"), localId))
+      .withIndex("by_clerk_and_local", (q) =>
+        q.eq("clerkId", identity.subject).eq("localId", localId)
+      )
       .first();
 
     if (existing) {

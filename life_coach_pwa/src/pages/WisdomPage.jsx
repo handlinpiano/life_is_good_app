@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { WISDOM_CATEGORIES } from '../store';
+import { WISDOM_CATEGORIES, newLocalId } from '../utils/constants';
 import { BookOpen, Plus, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +37,7 @@ function AddWisdomModal({ isOpen, onClose }) {
         if (!title || !content) return;
 
         await upsertWisdom({
-            localId: String(Date.now()),
+            localId: newLocalId(),
             title,
             category,
             content,

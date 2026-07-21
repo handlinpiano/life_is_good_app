@@ -3,14 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { useConvexAuth } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useStore, SEED_CATEGORIES, WISDOM_CATEGORIES, SEED_DIFFICULTIES } from '../store';
+import { useStore } from '../store';
 import { chat, formatChartAsText } from '../utils/api';
 import { Send, User, Sparkles, ArrowLeft, Sprout, Check, RotateCcw, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
-import { getLocalDateString } from '../utils/constants';
+import {
+  getLocalDateString,
+  newLocalId,
+  SEED_DIFFICULTIES,
+} from '../utils/constants';
 
 // Component to display a Seed Offer inside the chat
 function SeedOfferCard({ offer, onAccept, accepted }) {
@@ -241,7 +245,7 @@ Be warm, wise, and practical. Connect insights across all areas of life.`;
         if (!input.trim() || loading) return;
 
         const userMessage = input.trim();
-        const messageId = String(Date.now());
+        const messageId = newLocalId();
 
         // Add user message to Convex
         await addMessage({
@@ -270,7 +274,7 @@ Be warm, wise, and practical. Connect insights across all areas of life.`;
             if (response.success) {
                 // Add assistant message to Convex
                 await addMessage({
-                    localId: String(Date.now()),
+                    localId: newLocalId(),
                     role: 'assistant',
                     content: response.response,
                     timestamp: Date.now()
@@ -285,7 +289,7 @@ Be warm, wise, and practical. Connect insights across all areas of life.`;
 
     const handleAcceptSeed = async (offer) => {
         await upsertSeed({
-            localId: String(Date.now()),
+            localId: newLocalId(),
             title: offer.title,
             category: offer.category || 'General',
             description: offer.description || '',
@@ -298,7 +302,7 @@ Be warm, wise, and practical. Connect insights across all areas of life.`;
 
     const handleAcceptWisdom = async (offer) => {
         await upsertWisdom({
-            localId: String(Date.now()),
+            localId: newLocalId(),
             title: offer.title,
             category: offer.category || 'General',
             content: offer.content

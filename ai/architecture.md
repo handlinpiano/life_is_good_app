@@ -88,9 +88,7 @@ User (Browser)
 - Navigation tabs (Home, Garden, Wisdom, Chat)
 - Clerk's `<UserButton />` for account menu
 
-### Data Flow: Hybrid Approach
-
-We use two patterns depending on the data type:
+### Data Flow: Hybrid Approach (simplified 2026-03)
 
 **Pattern 1: Direct Convex (Seeds, Wisdom, Messages, Check-ins)**
 ```
@@ -98,22 +96,14 @@ User Action → useMutation() → Convex DB
                                   ↓
                             useQuery() ← Auto-updates UI
 ```
-Components call Convex hooks directly. No manual sync code needed.
+No Zustand involvement. No bulk sync.
 
-**Pattern 2: Zustand + Convex Sync (Profile, Chart, Dasha)**
+**Pattern 2: Profile/Chart cache**
 ```
-Login → AuthContext loads from Convex → Zustand Store
-                                              ↓
-                                     Components read from store
-                                              ↓
-IntakePage → Zustand → syncToCloud() → Convex
+Login → profiles.get (Convex) → AuthContext continuously mirrors → Zustand
+Intake → calculate chart → profiles.upsert → Convex → mirror updates store
+ProtectedRoute waits for profile query before requireChart redirect
 ```
-
-**Why the hybrid?**
-- **Profile/Chart** is write-once (at intake), read-many. Zustand provides instant access.
-- **Chart data is large** - complex nested objects. Caching in Zustand avoids repeated queries.
-- **ChatPage** needs chart context for every AI message - Zustand is faster than a query.
-- **Seeds/Wisdom/Messages** change frequently - direct Convex ensures real-time sync.
 
 **Which pattern to use:**
 | Data Type | Pattern | Why |
@@ -121,10 +111,8 @@ IntakePage → Zustand → syncToCloud() → Convex
 | Seeds | Direct Convex | Frequent updates, needs real-time |
 | Wisdom | Direct Convex | Frequent updates, needs real-time |
 | Messages | Direct Convex | Frequent updates, needs real-time |
-| Check-ins | Direct Convex | Frequent updates, needs real-time |
-| Profile | Zustand + Sync | Write-once, read-many |
-| Chart | Zustand + Sync | Large data, read-many |
-| Dasha | Zustand + Sync | Large data, read-many |
+| Check-ins | Direct Convex (`upsertByDate`) | Daily panchang + streak |
+| Profile / Chart / Dasha | Convex + Zustand cache | Large, read-many in chat |
 
 **Example - GardenPage:**
 ```jsx

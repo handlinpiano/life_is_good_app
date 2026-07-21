@@ -27,11 +27,11 @@ export const add = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Check if already exists
     const existing = await ctx.db
       .query("messages")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .filter((q) => q.eq(q.field("localId"), args.localId))
+      .withIndex("by_clerk_and_local", (q) =>
+        q.eq("clerkId", identity.subject).eq("localId", args.localId)
+      )
       .first();
 
     if (existing) return existing._id;
@@ -40,40 +40,6 @@ export const add = mutation({
       clerkId: identity.subject,
       ...args,
     });
-  },
-});
-
-// Batch sync messages
-export const syncAll = mutation({
-  args: {
-    items: v.array(v.object({
-      localId: v.string(),
-      role: v.string(),
-      content: v.string(),
-      timestamp: v.number(),
-    })),
-  },
-  handler: async (ctx, { items }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const existing = await ctx.db
-      .query("messages")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .collect();
-
-    const existingMap = new Map(existing.map(m => [m.localId, m]));
-
-    for (const item of items) {
-      if (!existingMap.has(item.localId)) {
-        await ctx.db.insert("messages", {
-          clerkId: identity.subject,
-          ...item,
-        });
-      }
-    }
-
-    return { synced: items.length };
   },
 });
 

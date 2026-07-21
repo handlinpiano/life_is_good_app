@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useStore, SEED_DIFFICULTIES } from '../store';
+import { useStore } from '../store';
+import { SEED_DIFFICULTIES } from '../utils/constants';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from 'convex/react';
 import { useConvexAuth } from 'convex/react';

@@ -70,8 +70,14 @@ const seeds = useQuery(api.seeds.list);
 
 // Writing data - no sync needed, persists immediately
 const upsertSeed = useMutation(api.seeds.upsert);
-await upsertSeed({ localId: "123", title: "Meditate", ... });
+await upsertSeed({ localId: newLocalId(), title: "Meditate", ... });
 ```
+
+**Data ownership:**
+| Entity | Source of truth |
+|--------|-----------------|
+| seeds, wisdom, messages, check-ins | Convex only |
+| profile, chart, dasha | Convex `profiles` (+ Zustand cache) |
 
 **Key patterns:**
 - `useQuery()` - Reactive reads, auto-updates UI when data changes
@@ -80,6 +86,8 @@ await upsertSeed({ localId: "123", title: "Meditate", ... });
   ```jsx
   const seeds = useQuery(api.seeds.list, isAuthenticated ? {} : "skip");
   ```
+- Check-ins: `api.checkins.upsertByDate({ date, panchang, seedsWatered, seedsTotal })`
+- AuthContext only hydrates profile/chart — do not reintroduce bulk entity sync
 
 ### The Guide
 A single AI companion that interprets your chart and offers guidance across all life areas (Health, Career, Spirituality, Relationships).

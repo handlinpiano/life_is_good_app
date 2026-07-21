@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useConvexAuth } from 'convex/react';
-import { SEED_DIFFICULTIES } from '../store';
 import { Droplets, Sprout, Plus, Trash2, CheckCircle, Leaf, Trophy, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
-import { getLocalDateString } from '../utils/constants';
+import { getLocalDateString, newLocalId, SEED_DIFFICULTIES } from '../utils/constants';
 
 const CATEGORY_COLORS = {
     Health: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -29,7 +28,7 @@ function PlantSeedModal({ isOpen, onClose }) {
         if (!title) return;
 
         await upsertSeed({
-            localId: String(Date.now()),
+            localId: newLocalId(),
             title,
             category,
             description,

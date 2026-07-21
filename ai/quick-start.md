@@ -76,6 +76,12 @@ npm run dev
 
 **DO NOT** write manual sync code. Convex handles persistence automatically.
 
+**Data ownership (after 2026-03 refactor):**
+- **seeds / wisdom / messages / check-ins** → Convex only (`useQuery` / `useMutation`)
+- **profile + chart + dasha** → Convex `profiles` table; AuthContext mirrors into Zustand for chat/dashboard cache
+- **Never** bulk-sync entity tables from Zustand (`syncAll` was removed)
+- Check-ins: use `api.checkins.upsertByDate` with panchang + seed counts
+
 ### Reading Data
 ```jsx
 import { useQuery } from 'convex/react';
