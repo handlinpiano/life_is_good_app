@@ -218,6 +218,11 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 ### Backend (Railway)
 ```
 DEEPSEEK_API_KEY=your-key
+# Optional DeepSeek V4 overrides (see deepseek_client.py)
+# DEEPSEEK_BASE_URL=https://api.deepseek.com
+# DEEPSEEK_MODEL=deepseek-v4-flash
+# DEEPSEEK_REASONING_MODEL=deepseek-v4-pro
+# DEEPSEEK_TIMEOUT=180
 ```
 
 ## Deployment

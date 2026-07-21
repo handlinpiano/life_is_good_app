@@ -1,18 +1,16 @@
 """
-DeepSeek Reasoner integration for Vedic chart interpretation.
-Uses the deepseek-reasoner model to analyze birth charts with chain-of-thought reasoning.
+DeepSeek integration for Vedic chart interpretation.
+
+Uses DeepSeek V4 via the OpenAI-compatible SDK (see deepseek_client.py).
+Default: deepseek-v4-pro with thinking mode for deep chart analysis;
+chat endpoints can use deepseek-v4-flash for lower latency.
 """
 
-import os
-import json
-from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
-
-client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com"
+from deepseek_client import (
+    DEFAULT_MODEL,
+    DEFAULT_REASONING_MODEL,
+    chat_complete,
+    parse_json_content,
 )
 
 INTERPRETATION_SYSTEM_PROMPT = """You are a revered Vedic astrologer (Jyotishi) with 40+ years of experience in the ancient science of Jyotish Shastra. You have studied under traditional gurus in Varanasi and Kashi, mastering not only chart interpretation but also the remedial measures including mantra, yantra, gemstones, dietary guidelines (Ayurvedic principles), and sadhana practices.
@@ -188,19 +186,20 @@ def interpret_chart(chart: dict, dasha: dict = None) -> dict:
     ]
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            max_tokens=8192
+        result = chat_complete(
+            messages,
+            model=DEFAULT_REASONING_MODEL,
+            thinking=True,
+            reasoning_effort="high",
+            max_tokens=8192,
         )
-
-        message = response.choices[0].message
 
         return {
             "success": True,
-            "reasoning": getattr(message, 'reasoning_content', None),
-            "interpretation": message.content,
-            "model": "deepseek-reasoner"
+            "reasoning": result.reasoning,
+            "interpretation": result.content,
+            "model": result.model,
+            "usage": result.usage,
         }
 
     except Exception as e:
@@ -255,16 +254,17 @@ The chart data is provided below for reference."""
     messages.append({"role": "user", "content": question})
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            max_tokens=4096
+        result = chat_complete(
+            messages,
+            model=DEFAULT_REASONING_MODEL,
+            thinking=True,
+            reasoning_effort="high",
+            max_tokens=4096,
         )
 
-        assistant_message = response.choices[0].message
-        response_text = assistant_message.content
+        response_text = result.content
 
-        # Build updated conversation history
+        # Build updated conversation history (API ignores reasoning_content on next turn)
         new_history = conversation_history.copy() if conversation_history else []
         new_history.append({"role": "user", "content": question})
         new_history.append({"role": "assistant", "content": response_text})
@@ -272,8 +272,10 @@ The chart data is provided below for reference."""
         return {
             "success": True,
             "response": response_text,
-            "reasoning": getattr(assistant_message, 'reasoning_content', None),
-            "conversation_history": new_history
+            "reasoning": result.reasoning,
+            "conversation_history": new_history,
+            "model": result.model,
+            "usage": result.usage,
         }
 
     except Exception as e:
@@ -291,25 +293,27 @@ def simple_chat(message: str, history: list) -> dict:
 
     No chart calculation needed. The system prompt with chart data
     is already the first message in history.
+    Uses V4 flash with thinking for a balance of quality and latency.
     """
     # Build messages from history + new message
     messages = history.copy()
     messages.append({"role": "user", "content": message})
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            max_tokens=4096
+        result = chat_complete(
+            messages,
+            model=DEFAULT_MODEL,
+            thinking=True,
+            reasoning_effort="high",
+            max_tokens=4096,
         )
-
-        assistant_message = response.choices[0].message
-        response_text = assistant_message.content
 
         return {
             "success": True,
-            "response": response_text,
-            "reasoning": getattr(assistant_message, 'reasoning_content', None)
+            "response": result.content,
+            "reasoning": result.reasoning,
+            "model": result.model,
+            "usage": result.usage,
         }
 
     except Exception as e:
@@ -372,7 +376,9 @@ Return your analysis as a JSON object with these sections:
     }
 }
 
-Be deeply insightful and specific to THIS chart. Draw on traditional Jyotish wisdom. Include actual mantra texts where appropriate. Remember: you are guiding a sincere aspirant on their journey."""
+Be deeply insightful and specific to THIS chart. Draw on traditional Jyotish wisdom. Include actual mantra texts where appropriate. Remember: you are guiding a sincere aspirant on their journey.
+
+IMPORTANT: Respond with a single valid JSON object only (no markdown fences)."""
 
     messages = [
         {"role": "system", "content": INTERPRETATION_SYSTEM_PROMPT},
@@ -380,35 +386,29 @@ Be deeply insightful and specific to THIS chart. Draw on traditional Jyotish wis
     ]
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            max_tokens=8192
+        result = chat_complete(
+            messages,
+            model=DEFAULT_REASONING_MODEL,
+            thinking=True,
+            reasoning_effort="high",
+            max_tokens=8192,
+            json_mode=True,
         )
 
-        message = response.choices[0].message
-        content = message.content
+        content = result.content or ""
 
-        # Try to parse JSON from response
         try:
-            # Find JSON in the response (may be wrapped in markdown code blocks)
-            if "```json" in content:
-                json_str = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                json_str = content.split("```")[1].split("```")[0].strip()
-            else:
-                json_str = content.strip()
-
-            interpretation = json.loads(json_str)
-        except (json.JSONDecodeError, IndexError):
+            interpretation = parse_json_content(content)
+        except (ValueError, Exception):
             # If JSON parsing fails, return as unstructured
             interpretation = {"raw": content}
 
         return {
             "success": True,
-            "reasoning": getattr(message, 'reasoning_content', None),
+            "reasoning": result.reasoning,
             "interpretation": interpretation,
-            "model": "deepseek-reasoner"
+            "model": result.model,
+            "usage": result.usage,
         }
 
     except Exception as e:
@@ -589,7 +589,9 @@ Return your analysis as a JSON object with this structure:
         "title": "Guidance for the Relationship",
         "content": "Practical wisdom for nurturing this connection"
     }}
-}}"""
+}}
+
+IMPORTANT: Respond with a single valid JSON object only (no markdown fences)."""
     else:
         # Multi-person (3-4 people) analysis
         names = ", ".join(labels[:-1]) + f" and {labels[-1]}"
@@ -627,7 +629,9 @@ Return your analysis as a JSON object with this structure:
         "title": "Guidance for the Group",
         "content": "How to maintain harmony and support each other's growth"
     }}
-}}"""
+}}
+
+IMPORTANT: Respond with a single valid JSON object only (no markdown fences)."""
 
     messages = [
         {"role": "system", "content": SYNASTRY_SYSTEM_PROMPT},
@@ -635,34 +639,29 @@ Return your analysis as a JSON object with this structure:
     ]
 
     try:
-        response = client.chat.completions.create(
-            model="deepseek-reasoner",
-            messages=messages,
-            max_tokens=8192
+        result = chat_complete(
+            messages,
+            model=DEFAULT_REASONING_MODEL,
+            thinking=True,
+            reasoning_effort="high",
+            max_tokens=8192,
+            json_mode=True,
         )
 
-        message = response.choices[0].message
-        content = message.content
+        content = result.content or ""
 
-        # Try to parse JSON from response
         try:
-            if "```json" in content:
-                json_str = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                json_str = content.split("```")[1].split("```")[0].strip()
-            else:
-                json_str = content.strip()
-
-            interpretation = json.loads(json_str)
-        except (json.JSONDecodeError, IndexError):
+            interpretation = parse_json_content(content)
+        except (ValueError, Exception):
             interpretation = {"raw": content}
 
         return {
             "success": True,
-            "reasoning": getattr(message, 'reasoning_content', None),
+            "reasoning": result.reasoning,
             "interpretation": interpretation,
             "synastry_data": synastry_data,
-            "model": "deepseek-reasoner"
+            "model": result.model,
+            "usage": result.usage,
         }
 
     except Exception as e:
